@@ -1,27 +1,67 @@
-package grammar_test
+package grammar
 
 import (
 	"fmt"
 	"testing"
-
-	"github.com/acarlson99/valiant-go/grammar"
 )
 
 func TestParse(t *testing.T) {
-	grammar.Parse()
+	Parse()
 }
 
 func TestType(t *testing.T) {
-	s := "abbcd"
+	// s := "abbcd"
 	// S -> aBSc
 	// S -> abc
 	// Ba -> aB
 	// Bb -> bb
-	g := grammar.Grammar{
+	g := Grammar{
 		N:     nil,
 		Sigma: nil,
 		P:     nil,
-		S:     grammar.Nonterminal{},
+		S:     "S",
 	}
 	fmt.Println(g)
+}
+
+// https://en.wikipedia.org/wiki/CYK_algorithm#Example
+func TestSentence(t *testing.T) {
+	// s := "she eats a fish with a fork"
+	productionRules := ProductionRules{
+		"S": {
+			{"NP", "VP"},
+		},
+		"VP": {
+			{"VP", "PP"},
+			{"P", "NP"},
+			{"eats"},
+		},
+		"PP": {
+			{"P", "NP"},
+		},
+		"NP": {
+			{"Det", "N"},
+			{"she"},
+		},
+		"V": {
+			{"eats"},
+		},
+		"P": {
+			{"with"},
+		},
+		"N": {
+			{"fish"},
+			{"fork"},
+		},
+		"Det": {
+			{"a"},
+		},
+	}
+	g := MakeGrammar(
+		[]Nonterminal{"S", "VP", "PP", "NP", "V", "P", "N", "Det"},
+		[]Terminal{"eats", "she", "with", "fish", "fork", "a"},
+		productionRules,
+		"S",
+	)
+	fmt.Printf("%+v\n", g)
 }

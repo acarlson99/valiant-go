@@ -1,40 +1,42 @@
 package grammar
 
-import (
-	"fmt"
-)
+type Symbol string
+type Nonterminal Symbol
+type Terminal Symbol
 
-type Nonterminal struct {
-}
+type ProductionRule []Symbol
 
-type Terminal struct {
-}
-
-type ProductionRule struct {
-}
+type ProductionRules map[Nonterminal][]ProductionRule
 
 func (ProductionRule) Produce([]Symbol, Nonterminal, []Symbol) []Symbol {
 	return nil
 }
 
-// type Symbol string
-
-type Symbol struct {
-	nt Nonterminal
-	t  Terminal
-}
-
 type Grammar struct {
 	// G = (N, sigma, P, S)
-	N     map[Symbol][]Nonterminal
-	Sigma map[Symbol][]Terminal
-	P     map[Symbol][]ProductionRule
+	N     map[Symbol]Nonterminal
+	Sigma map[Symbol]Terminal
+	P     ProductionRules
 	S     Nonterminal
 }
 
-func Parse() {
-	nt := Nonterminal{"a"}
-	fmt.Println(nt)
+func MakeGrammar(nts []Nonterminal, ts []Terminal, ps ProductionRules, s Nonterminal) Grammar {
+	ntm := make(map[Symbol]Nonterminal)
+	for _, sym := range nts {
+		ntm[Symbol(sym)] = sym
+	}
+	tm := make(map[Symbol]Terminal)
+	for _, sym := range ts {
+		tm[Symbol(sym)] = sym
+	}
+	return Grammar{
+		N:     ntm,
+		Sigma: tm,
+		P:     ps,
+		S:     s,
+	}
 }
 
-func b(nt Nonterminal) {}
+func (g *Grammar) Valiant(s string, n int) {
+
+}
