@@ -1,10 +1,25 @@
 package grammar
 
-type Symbol string
-type Nonterminal Symbol
-type Terminal Symbol
+type Symbol interface {
+	Name() string
+}
 
-type ProductionRule []Symbol
+type Nonterminal string
+
+func (s Nonterminal) Name() string {
+	return string(s)
+}
+
+type Terminal string
+
+func (s Terminal) Name() string {
+	return string(s)
+}
+
+type ProductionRule struct {
+	name Nonterminal
+	rhs  []Symbol
+}
 
 type ProductionRules map[Nonterminal][]ProductionRule
 
@@ -35,8 +50,4 @@ func MakeGrammar(nts []Nonterminal, ts []Terminal, ps ProductionRules, s Nonterm
 		P:     ps,
 		S:     s,
 	}
-}
-
-func (g *Grammar) Valiant(s string, n int) {
-
 }

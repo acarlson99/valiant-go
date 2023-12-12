@@ -6,7 +6,6 @@ import (
 )
 
 func TestParse(t *testing.T) {
-	Parse()
 }
 
 func TestType(t *testing.T) {
@@ -29,32 +28,32 @@ func TestSentence(t *testing.T) {
 	// s := "she eats a fish with a fork"
 	productionRules := ProductionRules{
 		"S": {
-			{"NP", "VP"},
+			{name: "S", rhs: []Symbol{Nonterminal("NP"), Nonterminal("VP")}},
 		},
 		"VP": {
-			{"VP", "PP"},
-			{"P", "NP"},
-			{"eats"},
+			{name: "VP", rhs: []Symbol{Nonterminal("VP"), Nonterminal("PP")}},
+			{name: "VP", rhs: []Symbol{Nonterminal("P"), Nonterminal("NP")}},
+			{name: "VP", rhs: []Symbol{Terminal("eats")}},
 		},
 		"PP": {
-			{"P", "NP"},
+			{name: "PP", rhs: []Symbol{Nonterminal("P"), Nonterminal("NP")}},
 		},
 		"NP": {
-			{"Det", "N"},
-			{"she"},
+			{name: "NP", rhs: []Symbol{Nonterminal("Det"), Nonterminal("N")}},
+			{name: "NP", rhs: []Symbol{Terminal("she")}},
 		},
 		"V": {
-			{"eats"},
+			{name: "V", rhs: []Symbol{Terminal("eats")}},
 		},
 		"P": {
-			{"with"},
+			{name: "P", rhs: []Symbol{Terminal("with")}},
 		},
 		"N": {
-			{"fish"},
-			{"fork"},
+			{name: "N", rhs: []Symbol{Terminal("fish")}},
+			{name: "N", rhs: []Symbol{Terminal("fork")}},
 		},
 		"Det": {
-			{"a"},
+			{name: "Det", rhs: []Symbol{Terminal("a")}},
 		},
 	}
 	g := MakeGrammar(
