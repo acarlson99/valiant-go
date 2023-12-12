@@ -3,8 +3,8 @@ package sparseMatrix
 type Thing interface{}
 
 type Matrix interface {
-	Idx(i, j int) Thing
-	Insert(i, j int, v Thing) Matrix
+	Idx(i, j int) *Thing
+	Insert(i, j int, v *Thing) Matrix
 	Width() int
 	Height() int
 }
@@ -121,18 +121,18 @@ func safeHalve(n int, m *SquareMatrix) int {
 // X X
 // UR X,Y = 0,0
 
-func (m *SquareMatrix) Idx(i, j int) Thing {
+func (m *SquareMatrix) Idx(i, j int) *Thing {
 	if m == nil {
 		return nil
 	}
 	q := m.quarter(i, j)
 	if q == nil {
-		return q
+		return nil
 	}
 	return (*q).Idx(safeHalve(i, m), safeHalve(j, m)) // TODO: this divide by 2 does not work
 }
 
-func (m *SquareMatrix) Insert(i, j int, v Thing) Matrix {
+func (m *SquareMatrix) Insert(i, j int, v *Thing) Matrix {
 	q := m.quarter(i, j)
 	if q == nil {
 		// TODO: decide what matrix to insert, should be square or unary
@@ -151,18 +151,18 @@ func (m *SquareMatrix) Insert(i, j int, v Thing) Matrix {
 }
 
 type UnitMatrix struct {
-	v Thing
+	v *Thing
 }
 
 func (m *UnitMatrix) Width() int { return 1 }
 
 func (m *UnitMatrix) Height() int { return 1 }
 
-func (m *UnitMatrix) Idx(i, j int) Thing {
+func (m *UnitMatrix) Idx(i, j int) *Thing {
 	return m.v
 }
 
-func (m *UnitMatrix) Insert(i, j int, v Thing) Matrix {
+func (m *UnitMatrix) Insert(i, j int, v *Thing) Matrix {
 	if m == nil {
 		return &UnitMatrix{v: v}
 	}
