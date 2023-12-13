@@ -7,6 +7,12 @@ type Matrix[T any] interface {
 	Height() int
 }
 
+// TODO: addition: set union
+//       multiplication: set(a) -> set(b) -> set(C(a,b))
+
+// function V to compute for one level up
+// solve what to do for singleton matrix
+
 // partition = N/2 where N is the width in cells of this section of the matrix
 
 type SquareMatrix[T any] struct {
