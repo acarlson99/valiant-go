@@ -9,7 +9,7 @@ data Matrix m
   | Empty Int -- (Empty 2) is same size as (SquareMatrix 2 _ _ _ _); placeholder value
   deriving (Eq)
 
-newUpperRightTriangularMatrix :: Int -> Matrix m
+newUpperRightTriangularMatrix :: Show m => Int -> Matrix m
 newUpperRightTriangularMatrix n
   | nsq < 2 = Empty 0
   | nsq == 2 = UpperRightTriangularMatrix nsq (Empty nsq) (Empty nsq) (Empty nsq)
@@ -23,75 +23,60 @@ nextClosestSquare :: (Ord a, Num a) => a -> a
 nextClosestSquare n =
   head $ dropWhile (< n) [2 ^ x | x <- ([0 ..] :: [Int])]
 
-newSquareMatrix :: Int -> Matrix m
+newSquareMatrix :: Show m => Int -> Matrix m
 newSquareMatrix n
   | nsq < 2 = Empty 0
-  | nsq == 2 = SquareMatrix nsq (Empty nsq) (Empty nsq) (Empty nsq) (Empty nsq)
+  | nsq == 2 = SquareMatrix nsq (Empty smsq) (Empty smsq) (Empty smsq) (Empty smsq)
   | otherwise = SquareMatrix nsq smallM smallM smallM smallM
   where
-    smallM = newSquareMatrix (float2Int (int2Float n / 2.0))
     nsq = nextClosestSquare n
+    smsq = float2Int (int2Float nsq / 2.0)
+    smallM = newSquareMatrix smsq
 
 -- v :: SquareMatrix a -> SquareMatrix a -> SquareMatrix a -> SquareMatrix a
 -- v a y b = undefined
 
-fixLength :: Int -> [Char] -> [Char]
-fixLength n s = replicate md ' ' ++ s ++ replicate dv ' '
-  where
-    (dv, md) = n `divMod` length s
+instance Show m => Show (Matrix m) where
+  show :: Show m => Matrix m -> String
+  show mat = str
+    where
+      (topMax, str) = walk mat
+      -- Richard Bird repmin-like function for printing a matrix
+      walk :: Show m => Matrix m -> (Int, String)
+      walk (Empty size) = (0, concat . replicate size $ replicate ((topMax + 1) * size) ' ' ++ "\n")
+      walk (UnitMatrix m) = (length s, fixLength topMax s)
+        where
+          s = show m
+          fixLength n x
+            | len == 0 = replicate n '+'
+            | otherwise = replicate md ' ' ++ x ++ replicate dv ' '
+            where
+              len = length x
+              (dv, md) = n `divMod` len
+      walk (SquareMatrix _ a b c d) = (foldr max 0 ns, concatQuads sa sb sc sd)
+        where
+          (ns, [sa, sb, sc, sd]) = unzip $ map walk [a, b, c, d]
+      walk (UpperRightTriangularMatrix size a b d) = (foldr max 0 ns, concatQuads sa sb sc sd)
+        where
+          (ns, [sa, sb, sc, sd]) = unzip $ map walk [a, b, Empty (float2Int (int2Float size / 2.0)), d]
+      concatQuads :: String -> String -> String -> String -> String
+      concatQuads a b c d = concatMap pairConcat [(a, b), (c, d)]
+        where
+          lhf = lines
+          rhf = map (++ "\n") . lines
+          pairConcat (x, y) = concat $ zipWith (++) (lhf x) (rhf y)
 
-concatQuads :: String -> String -> String -> String -> String
-concatQuads a b c d = upper ++ lower
-  where
-    lhf = lines
-    rhf = map (++ "\n") . lines
-    a_ = lhf a
-    b_ = rhf b
-    c_ = lhf c
-    d_ = rhf d
-
-    upper = concat $ zipWith (++) a_ b_
-    lower = concat $ zipWith (++) c_ d_
-
-applyF :: (String -> String -> a) -> [String] -> [String] -> [a]
-applyF f (a : as) (b : bs) = f a b : applyF f as bs
-applyF f [] (b : bs) = f (replicate (length b) ' ') b : applyF f [] bs
-applyF f (a : as) [] = f a (replicate (length a) ' ') : applyF f as []
-applyF _ [] [] = []
-
-showMx :: Show m => Matrix m -> String
-showMx m = s where (mx, s) = walkMx mx m
-
-walkMx :: Show m => Int -> Matrix m -> (Int, String)
-walkMx mx (Empty _) = (0, fixLength mx "")
-walkMx mx (UnitMatrix m) = (length s, fixLength mx s)
-  where
-    s = show m
-walkMx mx (SquareMatrix _ a b c d) = (foldr max 0 ns, concatQuads sa sb sc sd)
-  where
-    (ns, [sa, sb, sc, sd]) = unzip $ map (walkMx mx) [a, b, c, d]
-walkMx mx (UpperRightTriangularMatrix size a b d) = (foldr max 0 ns, concatQuads sa sb (replicate size '\n') sd)
-  where
-    (ns, [sa, sb, sd]) = unzip $ map (walkMx mx) [a, b, d]
-
--- (ns, [sa, sb, sc, sd]) = unzip $ map (walkMx mx) [a, b, c, SquareMatrix 0 (Empty (float2Int (int2Float size / 2.0))) (Empty (float2Int (int2Float size / 2.0))) (Empty (float2Int (int2Float size / 2.0))) (Empty (float2Int (int2Float size / 2.0)))]
-
--- walkMx mx (UpperRightTriangularMatrix size a b c) = undefined
--- walkMx mx (UpperRightTriangularMatrix _ a b c) = concatQuads ()
---   where
---     (ns, strs) = unzip $ map (mxMaybe (0, "") (walkMx mx)) [a, b, c]
-
-mxMaybe :: p -> (Matrix m -> p) -> Matrix m -> p
-mxMaybe b _ (Empty _) = b
-mxMaybe _ f m = f m
-
--- mat = SquareMatrix 4 a a a a
-mat :: Matrix Int
-mat = UpperRightTriangularMatrix 4 t a t
+mat1 :: Show a => a -> Matrix a
+mat1 n = UpperRightTriangularMatrix 8 t2 as t2
   where
     a = SquareMatrix 2 b c d e
-    b = UnitMatrix 400 :: Matrix Int
-    c = UnitMatrix 6 :: Matrix Int
-    d = UnitMatrix 9 :: Matrix Int
-    e = UnitMatrix 2 :: Matrix Int
-    t = UpperRightTriangularMatrix 2 (UnitMatrix 1) (UnitMatrix 2) (UnitMatrix 3)
+    b = UnitMatrix n -- :: Matrix a
+    c = UnitMatrix n -- :: Matrix a
+    d = UnitMatrix n -- :: Matrix a
+    e = UnitMatrix n -- :: Matrix a
+    as = SquareMatrix 4 a a a a
+    t = UpperRightTriangularMatrix 2 (UnitMatrix n) (UnitMatrix n) (UnitMatrix n)
+    t2 = UpperRightTriangularMatrix 4 t a t
+
+sqm :: (Show a) => a -> Matrix a
+sqm n = SquareMatrix 16 (mat1 n) (mat1 n) (mat1 n) (mat1 n)
