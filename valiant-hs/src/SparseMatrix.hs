@@ -37,7 +37,6 @@ newSquareMatrix n
 -- v a y b = undefined
 
 instance Show m => Show (Matrix m) where
-  show :: Show m => Matrix m -> String
   show mat = str
     where
       (topMax, str) = walk mat

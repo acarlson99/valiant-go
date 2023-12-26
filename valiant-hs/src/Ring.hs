@@ -1,11 +1,15 @@
 module Ring where
 
 import Data.Set
-import SparseMatrix
+import SparseMatrix (Matrix)
 
 class Ring a where
   add :: a -> a -> a
   mul :: a -> a -> a
+
+instance Ring a => Ring (Matrix a) where
+  add a b = undefined
+  mul a b = undefined
 
 -- instance Ring a => Ring (SquareMatrix a) where
 --   add a b =
