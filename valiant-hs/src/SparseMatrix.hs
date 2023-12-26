@@ -29,7 +29,17 @@ instance Applicative Matrix where
     | n1 /= n2 = error "Matrix size mismatch!"
     | otherwise = UpperRightTriangularMatrix n1 (f1 <*> a) (f2 <*> b) (f3 <*> c)
   (UnitMatrix f) <*> (UnitMatrix x) = UnitMatrix (f x)
+  (Empty n1) <*> (Empty n2)
+    | n1 /= n2 = error "Matrix size mismatch!"
+    | otherwise = Empty n2
   _ <*> _ = error "Matrix type mismatch!"
+
+instance (Semigroup a) => Semigroup (Matrix a) where
+  (<>) :: Matrix a -> Matrix a -> Matrix a
+  (<>) = (<*>) . ((<>) <$>)
+
+instance (Monoid a) => Monoid (Matrix a) where
+  mempty = Empty 0
 
 newUpperRightTriangularMatrix :: Show m => Int -> Matrix m
 newUpperRightTriangularMatrix n
