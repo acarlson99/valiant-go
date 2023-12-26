@@ -1,15 +1,28 @@
 module Ring where
 
-import Data.Set
-import SparseMatrix (Matrix)
+import Data.Set (Set, fromList, toList, union)
+import SparseMatrix
 
 class Ring a where
   add :: a -> a -> a
   mul :: a -> a -> a
 
 instance Ring a => Ring (Matrix a) where
-  add a b = undefined
-  mul a b = undefined
+  add (SquareMatrix size aa ab ac ad) (SquareMatrix _ ba bb bc bd) =
+    SquareMatrix size (aa `add` ba) (ab `add` bb) (ac `add` bc) (ad `add` bd)
+  add (UpperRightTriangularMatrix size aa ab ad) (UpperRightTriangularMatrix _ ba bb bd) =
+    UpperRightTriangularMatrix size (aa `add` ba) (ab `add` bb) (ad `add` bd)
+  add (UnitMatrix a) (UnitMatrix b) = UnitMatrix $ a `add` b
+  add (Empty size) Empty {} = Empty size
+  add _ _ = undefined
+
+  mul (SquareMatrix size aa ab ac ad) (SquareMatrix _ ba bb bc bd) =
+    SquareMatrix size (aa `mul` ba) (ab `mul` bb) (ac `mul` bc) (ad `mul` bd)
+  mul (UpperRightTriangularMatrix size aa ab ad) (UpperRightTriangularMatrix _ ba bb bd) =
+    UpperRightTriangularMatrix size (aa `mul` ba) (ab `mul` bb) (ad `mul` bd)
+  mul (UnitMatrix a) (UnitMatrix b) = UnitMatrix $ a `mul` b
+  mul (Empty size) Empty {} = Empty size
+  mul _ _ = undefined
 
 -- instance Ring a => Ring (SquareMatrix a) where
 --   add a b =

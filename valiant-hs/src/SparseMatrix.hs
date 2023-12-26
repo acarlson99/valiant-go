@@ -1,3 +1,5 @@
+{-# LANGUAGE InstanceSigs #-}
+
 module SparseMatrix where
 
 import GHC.Float
@@ -8,6 +10,12 @@ data Matrix m
   | UnitMatrix m
   | Empty Int -- (Empty 2) is same size as (SquareMatrix 2 _ _ _ _); placeholder value
   deriving (Eq)
+
+instance Functor Matrix where
+  fmap f (SquareMatrix s a b c d) = SquareMatrix s (f a) (f b) (f c) (f d)
+  fmap f (UpperRightTriangularMatrix s a b d) = UpperRightTriangularMatrix s (f a) (f b) (f d)
+  fmap f (UnitMatrix a) = UnitMatrix (f a)
+  fmap _ (Empty size) = Empty size
 
 newUpperRightTriangularMatrix :: Show m => Int -> Matrix m
 newUpperRightTriangularMatrix n
