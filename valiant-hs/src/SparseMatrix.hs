@@ -11,6 +11,14 @@ data Matrix m
   | Empty Int -- (Empty 2) is same size as (SquareMatrix 2 _ _ _ _); placeholder value
   deriving (Eq)
 
+instance Foldable Matrix where
+  foldr :: (a -> b -> b) -> b -> Matrix a -> b
+  -- foldr f acc (SquareMatrix _ a b c d) = fn d . fn c . fn b $ fn a acc
+  foldr f acc (SquareMatrix _ a b c d) = foldr (flip $ foldr f) acc [a, b, c, d]
+  foldr f acc (UpperRightTriangularMatrix _ a b d) = foldr (flip $ foldr f) acc [a, b, d]
+  foldr f acc (UnitMatrix a) = f a acc
+  foldr _ acc (Empty _) = acc
+
 instance Functor Matrix where
   fmap :: (a -> b) -> Matrix a -> Matrix b
   fmap f (SquareMatrix n a b c d) = SquareMatrix n (fmap f a) (fmap f b) (fmap f c) (fmap f d)
@@ -55,7 +63,7 @@ nextClosestSquare :: (Ord a, Num a) => a -> a
 nextClosestSquare n =
   head $ dropWhile (< n) [2 ^ x | x <- ([0 ..] :: [Int])]
 
-newSquareMatrix :: Show m => Int -> Matrix m
+newSquareMatrix :: Int -> Matrix m
 newSquareMatrix n
   | nsq < 2 = Empty 0
   | nsq == 2 = SquareMatrix nsq (Empty smsq) (Empty smsq) (Empty smsq) (Empty smsq)
