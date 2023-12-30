@@ -1,7 +1,8 @@
 module Ring where
 
 import Data.Set (Set, fromList, toList, union)
-import SparseMatrix
+
+-- import SparseMatrix
 
 -- | The 'Ring' class is used for ring-like datatypes.
 --
@@ -17,11 +18,6 @@ class Ring a where
   zero :: a
   add :: a -> a -> a
   mul :: a -> a -> a
-
-instance Ring a => Ring (Matrix a) where
-  zero = UnitMatrix zero
-  add = (<*>) . (add <$>)
-  mul = (<*>) . (mul <$>)
 
 instance Ring a => Ring (Maybe a) where
   zero = Nothing

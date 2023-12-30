@@ -3,6 +3,7 @@
 module SparseMatrix where
 
 import GHC.Float
+import Ring
 
 data Matrix m
   = SquareMatrix Int (Matrix m) (Matrix m) (Matrix m) (Matrix m)
@@ -26,10 +27,21 @@ instance Functor Matrix where
   fmap f (UnitMatrix a) = UnitMatrix (f a)
   fmap _ (Empty size) = Empty size
 
+instance Ring a => Ring (Matrix a) where
+  zero = UnitMatrix zero
+  add = (<*>) . (add <$>)
+  mul = (<*>) . (mul <$>)
+
 instance Applicative Matrix where
   pure :: a -> Matrix a
   pure = UnitMatrix
   (<*>) :: Matrix (a -> b) -> Matrix a -> Matrix b
+  (UnitMatrix f) <*> (SquareMatrix n a b c d) = SquareMatrix n (pure f) (pure f) (pure f) (pure f) <*> SquareMatrix n a b c d
+  (UnitMatrix f) <*> (UpperRightTriangularMatrix n a b d) = UpperRightTriangularMatrix n (pure f) (pure f) (pure f) <*> UpperRightTriangularMatrix n a b d
+  (UnitMatrix _) <*> (Empty n) = Empty n <*> Empty n
+  (UpperRightTriangularMatrix n a b d) <*> (UnitMatrix f) = UpperRightTriangularMatrix n a b d <*> UpperRightTriangularMatrix n (pure f) (pure f) (pure f)
+  (SquareMatrix n a b c d) <*> (UnitMatrix f) = SquareMatrix n a b c d <*> SquareMatrix n (pure f) (pure f) (pure f) (pure f)
+  (Empty n) <*> (UnitMatrix _) = Empty n <*> Empty n
   (SquareMatrix n1 f1 f2 f3 f4) <*> (SquareMatrix n2 a b c d)
     | n1 /= n2 = error "Matrix size mismatch!"
     | otherwise = SquareMatrix n1 (f1 <*> a) (f2 <*> b) (f3 <*> c) (f4 <*> d)
