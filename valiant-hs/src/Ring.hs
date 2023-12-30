@@ -34,7 +34,7 @@ instance Ring Int where
   mul = (*)
 
 instance (Ring a, Ord a) => Ring (Set a) where
-  zero = fromList []
+  zero = mempty
   add = union
   mul a b = fromList $ add <$> toList a <*> toList b
 
