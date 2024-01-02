@@ -9,12 +9,11 @@ data Matrix m
   = SquareMatrix Int (Matrix m) (Matrix m) (Matrix m) (Matrix m)
   | UpperRightTriangularMatrix Int (Matrix m) (Matrix m) (Matrix m)
   | UnitMatrix m
-  | Empty Int -- (Empty 2) is same size as (SquareMatrix 2 _ _ _ _); placeholder value
+  | Empty Int
   deriving (Eq)
 
 instance Foldable Matrix where
   foldr :: (a -> b -> b) -> b -> Matrix a -> b
-  -- foldr f acc (SquareMatrix _ a b c d) = fn d . fn c . fn b $ fn a acc
   foldr f acc (SquareMatrix _ a b c d) = foldr (flip $ foldr f) acc [a, b, c, d]
   foldr f acc (UpperRightTriangularMatrix _ a b d) = foldr (flip $ foldr f) acc [a, b, d]
   foldr f acc (UnitMatrix a) = f a acc
@@ -58,22 +57,23 @@ instance (Semigroup a) => Semigroup (Matrix a) where
   (<>) :: Matrix a -> Matrix a -> Matrix a
   (<>) = (<*>) . ((<>) <$>)
 
-instance (Monoid a) => Monoid (Matrix a) where
+instance (Semigroup a) => Monoid (Matrix a) where
   mempty = Empty 0
-
-newUpperRightTriangularMatrix :: Show m => Int -> Matrix m
-newUpperRightTriangularMatrix n
-  | nsq < 2 = Empty 0
-  | nsq == 2 = UpperRightTriangularMatrix nsq (Empty nsq) (Empty nsq) (Empty nsq)
-  | otherwise = UpperRightTriangularMatrix nsq smallT smallSQ smallT
-  where
-    smallT = newUpperRightTriangularMatrix (float2Int (int2Float n / 2.0))
-    smallSQ = newSquareMatrix (float2Int (int2Float n / 2.0))
-    nsq = nextClosestSquare n
 
 nextClosestSquare :: (Ord a, Num a) => a -> a
 nextClosestSquare n =
   head $ dropWhile (< n) [2 ^ x | x <- ([0 ..] :: [Int])]
+
+newUpperRightTriangularMatrix :: Show m => Int -> Matrix m
+newUpperRightTriangularMatrix n
+  | nsq < 2 = Empty 0
+  | nsq == 2 = UpperRightTriangularMatrix nsq (Empty smsq) (Empty smsq) (Empty smsq)
+  | otherwise = UpperRightTriangularMatrix nsq smallT smallSQ smallT
+  where
+    smallT = newUpperRightTriangularMatrix (float2Int (int2Float n / 2.0))
+    smallSQ = newSquareMatrix (float2Int (int2Float n / 2.0))
+    smsq = float2Int (int2Float nsq / 2.0)
+    nsq = nextClosestSquare n
 
 newSquareMatrix :: Int -> Matrix m
 newSquareMatrix n
@@ -93,7 +93,7 @@ instance Show m => Show (Matrix m) where
   show mat = str
     where
       (topMax, str) = walk mat
-      -- Richard Bird repmin-like function for printing a matrix
+      -- Richard Bird repmin-like function for printing a matrix with good spacing
       walk :: (Show m) => Matrix m -> (Int, String)
       walk (Empty size) = (0, concat . replicate size $ replicate ((topMax + 1) * size) ' ' ++ "\n")
       walk (UnitMatrix m) = (length s, fixLength topMax s)

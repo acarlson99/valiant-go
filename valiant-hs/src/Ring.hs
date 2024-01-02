@@ -11,7 +11,7 @@ import Data.Set (Set, fromList, toList, union)
 -- 1. @x + 0@ = @x@
 -- 2. @0 + x@ = @x@
 -- 3. @(x + y) + z@ = @x + (y + z)@
--- 4. @x · (y + z)@ = @x · y + x · z@
+-- 4. @x · (y + z)@ = @(x · y) + (x · z)@
 -- 5. @x · 0@ = @0@
 -- 6. @0 · x@ = @0@
 class Ring a where
@@ -19,14 +19,34 @@ class Ring a where
   add :: a -> a -> a
   mul :: a -> a -> a
 
+verifyRing :: (Show a, Eq a, Ring a) => a -> a
+verifyRing one =
+  if and
+    [ x /= y,
+      x /= z,
+      y /= z,
+      (x `add` zero) == x,
+      x == (x `add` zero),
+      (x `add` y) `add` z == x `add` (y `add` z),
+      x `mul` (y `add` z) == (x `mul` y) `add` (x `mul` z),
+      x `mul` zero == zero,
+      zero `mul` x == zero
+    ]
+    then one
+    else zero
+  where
+    x = one
+    y = one `add` one
+    z = y `add` one
+
 instance Ring a => Ring (Maybe a) where
   zero = Nothing
   add (Just a) (Just b) = Just (a `add` b)
   add a Nothing = a
   add Nothing b = b
   mul (Just a) (Just b) = Just (a `mul` b)
-  mul a Nothing = a
-  mul Nothing b = b
+  mul _ Nothing = Nothing
+  mul Nothing _ = Nothing
 
 instance Ring Int where
   zero = 0
