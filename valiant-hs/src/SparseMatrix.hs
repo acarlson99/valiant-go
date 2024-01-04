@@ -12,7 +12,7 @@ module SparseMatrix where
 
 import Ring
 
--- Data
+-------------------------------- Data ------------------------------------------
 
 data N = Z | S N deriving (Eq, Show)
 
@@ -32,50 +32,6 @@ instance IsZeroType 'Z where
 instance IsZeroType n => IsZeroType ('S n) where
   isZeroType _ = False
 
--- Construct
-
-nextClosestSquare :: (Ord a, Num a) => a -> a
-nextClosestSquare n =
-  head $ dropWhile (< n) [2 ^ x | x <- ([0 ..] :: [Int])]
-
--- newUpperRightTriangularMatrix :: Show m => Int -> Matrix n m
--- newUpperRightTriangularMatrix n
---   | nsq < 2 = Empty 0
---   | nsq == 2 = UpperRightTriangularMatrix (Empty smsq) (Empty smsq) (Empty smsq)
---   | otherwise = UpperRightTriangularMatrix smallT smallSQ smallT
---   where
---     smallT = newUpperRightTriangularMatrix (float2Int (int2Float n / 2.0))
---     smallSQ = newSquareMatrix (float2Int (int2Float n / 2.0))
---     smsq = float2Int (int2Float nsq / 2.0)
---     nsq = nextClosestSquare n
-
-u2s :: Matrix n m -> Matrix n m
-u2s (UpperRightTriangularMatrix a b d) = SquareMatrix a b Empty d
-u2s _ = undefined
-
--- u2s (UpperRightTriangularMatrix a b d) = SquareMatrix a b (Empty $ size a) d
-
--- newSquareMatrix :: Int -> Matrix n m
--- newSquareMatrix n
---   | nsq < 2 = Empty 0
---   | nsq == 2 = SquareMatrix (Empty smsq) (Empty smsq) (Empty smsq) (Empty smsq)
---   | otherwise = newSquareMatrix_ smallM
---   where
---     nsq = nextClosestSquare n
---     smsq = float2Int (int2Float nsq / 2.0)
---     smallM = newSquareMatrix smsq
-
-newSquareMatrix_ :: Matrix ('S n) m -> Matrix ('S ('S n)) m
-newSquareMatrix_ m = SquareMatrix m m m m
-
--- Algorithm
-
-v :: Matrix n a -> Matrix n b
-v SquareMatrix {} = undefined
-v UpperRightTriangularMatrix {} = undefined
-v (UnitMatrix _) = undefined
-v Empty = undefined
-
 -- Test stuff
 
 mat1 n = UpperRightTriangularMatrix t2 as t2
@@ -91,11 +47,59 @@ mat1 n = UpperRightTriangularMatrix t2 as t2
 
 mat2 n = SquareMatrix (mat1 n) (mat1 n) (mat1 n) (mat1 n)
 
--- Instances
+------------------------ Functors and things -----------------------------------
 
----- Show
+instance Foldable (Matrix n) where
+  foldr :: (a -> b -> b) -> b -> Matrix n a -> b
+  foldr f acc (SquareMatrix a b c d) = foldr (flip $ foldr f) acc [a, b, c, d]
+  foldr f acc (UpperRightTriangularMatrix a b d) = foldr (flip $ foldr f) acc [a, b, d]
+  foldr f acc (UnitMatrix a) = f a acc
+  foldr _ acc Empty = acc
 
--- see Richard Bird repmin
+instance Functor (Matrix n) where
+  fmap f (SquareMatrix a b c d) = SquareMatrix (fmap f a) (fmap f b) (fmap f c) (fmap f d)
+  fmap f (UpperRightTriangularMatrix a b d) = UpperRightTriangularMatrix (fmap f a) (fmap f b) (fmap f d)
+  fmap f (UnitMatrix a) = UnitMatrix (f a)
+  fmap _ Empty = Empty
+
+instance Ring a => Ring (Matrix 'Z a) where
+  zero = Empty
+  add = undefined
+  mul = undefined
+
+instance (Ring a, Applicative (Matrix ('S n))) => Ring (Matrix ('S ('S n)) a) where
+  zero = Empty
+  add = (<*>) . (add <$>)
+  mul = (<*>) . (mul <$>)
+
+instance Applicative (Matrix 'Z) where
+  pure = const Empty
+  _ <*> _ = Empty
+
+instance Applicative (Matrix ('S 'Z)) where
+  pure = UnitMatrix
+  (UnitMatrix a) <*> (UnitMatrix b) = UnitMatrix $ a b
+  Empty <*> _ = Empty
+  _ <*> Empty = Empty
+
+instance Applicative (Matrix ('S n)) => Applicative (Matrix ('S ('S n))) where
+  pure m = SquareMatrix (pure m) (pure m) (pure m) (pure m)
+  (SquareMatrix a b c d) <*> (SquareMatrix e f g h) = SquareMatrix (a <*> e) (b <*> f) (c <*> g) (d <*> h)
+  (UpperRightTriangularMatrix a b d) <*> (UpperRightTriangularMatrix e f h) = UpperRightTriangularMatrix (a <*> e) (b <*> f) (d <*> h)
+  (UpperRightTriangularMatrix a b d) <*> (SquareMatrix e f _ h) = UpperRightTriangularMatrix (a <*> e) (b <*> f) (d <*> h)
+  (SquareMatrix a b _ d) <*> (UpperRightTriangularMatrix e f h) = UpperRightTriangularMatrix (a <*> e) (b <*> f) (d <*> h)
+  Empty <*> _ = Empty
+  _ <*> Empty = Empty
+
+instance (Applicative (Matrix n), Semigroup a) => Semigroup (Matrix n a) where
+  (<>) = (<*>) . ((<>) <$>)
+
+instance (Applicative (Matrix n), Semigroup a) => Monoid (Matrix n a) where
+  mempty = Empty
+
+---------------------------------- Show ----------------------------------------
+
+-- Richard Bird repmin
 class (Show a) => BirdWalk a where
   walk :: Int -> a -> (Int, String)
 
@@ -169,50 +173,46 @@ instance (Size (Matrix ('S n) m)) => Size (Matrix ('S ('S n)) m) where
         helper _ = Empty
         n = size $ helper m
 
-instance Foldable (Matrix n) where
-  foldr :: (a -> b -> b) -> b -> Matrix n a -> b
-  foldr f acc (SquareMatrix a b c d) = foldr (flip $ foldr f) acc [a, b, c, d]
-  foldr f acc (UpperRightTriangularMatrix a b d) = foldr (flip $ foldr f) acc [a, b, d]
-  foldr f acc (UnitMatrix a) = f a acc
-  foldr _ acc Empty = acc
+---------------------------- Constructors --------------------------------------
 
-instance Functor (Matrix n) where
-  fmap f (SquareMatrix a b c d) = SquareMatrix (fmap f a) (fmap f b) (fmap f c) (fmap f d)
-  fmap f (UpperRightTriangularMatrix a b d) = UpperRightTriangularMatrix (fmap f a) (fmap f b) (fmap f d)
-  fmap f (UnitMatrix a) = UnitMatrix (f a)
-  fmap _ Empty = Empty
+nextClosestSquare :: (Ord a, Num a) => a -> a
+nextClosestSquare n =
+  head $ dropWhile (< n) [2 ^ x | x <- ([0 ..] :: [Int])]
 
-instance Ring a => Ring (Matrix 'Z a) where
-  zero = Empty
-  add = undefined
-  mul = undefined
+-- newUpperRightTriangularMatrix :: Show m => Int -> Matrix n m
+-- newUpperRightTriangularMatrix n
+--   | nsq < 2 = Empty 0
+--   | nsq == 2 = UpperRightTriangularMatrix (Empty smsq) (Empty smsq) (Empty smsq)
+--   | otherwise = UpperRightTriangularMatrix smallT smallSQ smallT
+--   where
+--     smallT = newUpperRightTriangularMatrix (float2Int (int2Float n / 2.0))
+--     smallSQ = newSquareMatrix (float2Int (int2Float n / 2.0))
+--     smsq = float2Int (int2Float nsq / 2.0)
+--     nsq = nextClosestSquare n
 
-instance (Ring a, Applicative (Matrix ('S n))) => Ring (Matrix ('S ('S n)) a) where
-  zero = Empty
-  add = (<*>) . (add <$>)
-  mul = (<*>) . (mul <$>)
+u2s :: Matrix n m -> Matrix n m
+u2s (UpperRightTriangularMatrix a b d) = SquareMatrix a b Empty d
+u2s _ = undefined
 
-instance Applicative (Matrix 'Z) where
-  pure = const Empty
-  _ <*> _ = Empty
+-- u2s (UpperRightTriangularMatrix a b d) = SquareMatrix a b (Empty $ size a) d
 
-instance Applicative (Matrix ('S 'Z)) where
-  pure = UnitMatrix
-  (UnitMatrix a) <*> (UnitMatrix b) = UnitMatrix $ a b
-  Empty <*> _ = Empty
-  _ <*> Empty = Empty
+-- newSquareMatrix :: Int -> Matrix n m
+-- newSquareMatrix n
+--   | nsq < 2 = Empty 0
+--   | nsq == 2 = SquareMatrix (Empty smsq) (Empty smsq) (Empty smsq) (Empty smsq)
+--   | otherwise = newSquareMatrix_ smallM
+--   where
+--     nsq = nextClosestSquare n
+--     smsq = float2Int (int2Float nsq / 2.0)
+--     smallM = newSquareMatrix smsq
 
-instance Applicative (Matrix ('S n)) => Applicative (Matrix ('S ('S n))) where
-  pure m = SquareMatrix (pure m) (pure m) (pure m) (pure m)
-  (SquareMatrix a b c d) <*> (SquareMatrix e f g h) = SquareMatrix (a <*> e) (b <*> f) (c <*> g) (d <*> h)
-  (UpperRightTriangularMatrix a b d) <*> (UpperRightTriangularMatrix e f h) = UpperRightTriangularMatrix (a <*> e) (b <*> f) (d <*> h)
-  (UpperRightTriangularMatrix a b d) <*> (SquareMatrix e f _ h) = UpperRightTriangularMatrix (a <*> e) (b <*> f) (d <*> h)
-  (SquareMatrix a b _ d) <*> (UpperRightTriangularMatrix e f h) = UpperRightTriangularMatrix (a <*> e) (b <*> f) (d <*> h)
-  Empty <*> _ = Empty
-  _ <*> Empty = Empty
+newSquareMatrix_ :: Matrix ('S n) m -> Matrix ('S ('S n)) m
+newSquareMatrix_ m = SquareMatrix m m m m
 
-instance (Applicative (Matrix n), Semigroup a) => Semigroup (Matrix n a) where
-  (<>) = (<*>) . ((<>) <$>)
+------------------------------- Algorithm --------------------------------------
 
-instance (Applicative (Matrix n), Semigroup a) => Monoid (Matrix n a) where
-  mempty = Empty
+v :: Matrix n a -> Matrix n b
+v SquareMatrix {} = undefined
+v UpperRightTriangularMatrix {} = undefined
+v (UnitMatrix _) = undefined
+v Empty = undefined
