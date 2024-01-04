@@ -14,6 +14,8 @@ import Ring
 
 -------------------------------- Data ------------------------------------------
 
+-- Ideas from https://stackoverflow.com/questions/20558648/what-is-the-datakinds-extension-of-haskell
+--            https://stackoverflow.com/questions/43156781/haskell-gadts-making-a-type-safe-tensor-types-for-riemannian-geometry
 data N = Z | S N deriving (Eq, Show)
 
 data Matrix (n :: N) m where
