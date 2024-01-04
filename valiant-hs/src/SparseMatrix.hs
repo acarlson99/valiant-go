@@ -5,10 +5,11 @@
 {-# LANGUAGE InstanceSigs #-}
 {-# LANGUAGE PolyKinds #-}
 {-# LANGUAGE TypeFamilies #-}
+-- TODO: find a way to remove UndecidableInstances (seems like a bad idea).  Likely this would be by using `IsZeroType`
+{-# LANGUAGE UndecidableInstances #-}
 
 module SparseMatrix where
 
-import GHC.Float
 import Ring
 
 -- Data
@@ -16,10 +17,20 @@ import Ring
 data N = Z | S N deriving (Eq, Show)
 
 data Matrix (n :: N) m where
-  SquareMatrix :: Matrix n m -> Matrix n m -> Matrix n m -> Matrix n m -> Matrix ('S n) m
-  UpperRightTriangularMatrix :: Matrix n m -> Matrix n m -> Matrix n m -> Matrix ('S n) m
-  UnitMatrix :: m -> Matrix 'Z m
+  SquareMatrix :: Matrix ('S n) m -> Matrix ('S n) m -> Matrix ('S n) m -> Matrix ('S n) m -> Matrix ('S ('S n)) m
+  UpperRightTriangularMatrix :: Matrix ('S n) m -> Matrix ('S n) m -> Matrix ('S n) m -> Matrix ('S ('S n)) m
+  UnitMatrix :: m -> Matrix ('S 'Z) m
   Empty :: Matrix n m
+
+-- TODO: this should not remain unused
+class IsZeroType n where
+  isZeroType :: Matrix n m -> Bool
+
+instance IsZeroType 'Z where
+  isZeroType _ = True
+
+instance IsZeroType n => IsZeroType ('S n) where
+  isZeroType _ = False
 
 -- Construct
 
@@ -54,7 +65,7 @@ u2s _ = undefined
 --     smsq = float2Int (int2Float nsq / 2.0)
 --     smallM = newSquareMatrix smsq
 
-newSquareMatrix_ :: Matrix n m -> Matrix ('S n) m
+newSquareMatrix_ :: Matrix ('S n) m -> Matrix ('S ('S n)) m
 newSquareMatrix_ m = SquareMatrix m m m m
 
 -- Algorithm
@@ -67,7 +78,6 @@ v Empty = undefined
 
 -- Test stuff
 
-mat1 :: Int -> Matrix ('S ('S ('S 'Z))) Int
 mat1 n = UpperRightTriangularMatrix t2 as t2
   where
     a = SquareMatrix b c d e
@@ -83,6 +93,9 @@ mat2 n = SquareMatrix (mat1 n) (mat1 n) (mat1 n) (mat1 n)
 
 -- Instances
 
+---- Show
+
+-- see Richard Bird repmin
 class (Show a) => BirdWalk a where
   walk :: Int -> a -> (Int, String)
 
@@ -95,6 +108,8 @@ instance (Show m) => BirdWalk (Matrix 'Z m) where
   walk topMax Empty = (0, concat . replicate len $ replicate ((topMax + 1) * len) ' ' ++ "\n")
     where
       len = 1
+
+instance (Show m, Show (Matrix ('S 'Z) m)) => BirdWalk (Matrix ('S 'Z) m) where
   walk topMax (UnitMatrix m) = (length s, fixLength topMax s)
     where
       s = show m
@@ -104,10 +119,12 @@ instance (Show m) => BirdWalk (Matrix 'Z m) where
         where
           len = length x
           (dv, md) = n `divMod` len
+  --          Empty
+  walk topMax mat = (0, concat . replicate (size mat) $ replicate ((topMax + 1) * size mat) ' ' ++ "\n")
 
 instance
-  (Show m, Size (Matrix n m), BirdWalk (Matrix n m)) =>
-  BirdWalk (Matrix ('S n) m)
+  (Show m, Show (Matrix ('S ('S n)) m), Size (Matrix ('S n) m), BirdWalk (Matrix ('S n) m)) =>
+  BirdWalk (Matrix ('S ('S n)) m)
   where
   walk topMax mat = case mat of
     (SquareMatrix a b c d) -> (foldr max 0 ns, concatQuads sa sb sc sd)
@@ -118,14 +135,6 @@ instance
         (ns, [sa, sb, sc, sd]) = unzip $ map (walk topMax) [a, b, Empty, d]
     Empty -> (0, concat . replicate (size mat) $ replicate ((topMax + 1) * size mat) ' ' ++ "\n")
 
-instance
-  (Show m, BirdWalk (Matrix n m), Size (Matrix n m)) =>
-  Show (Matrix ('S n) m)
-  where
-  show mat = s
-    where
-      (topMax, s) = walk topMax mat
-
 concatQuads :: String -> String -> String -> String -> String
 concatQuads a b c d = concatMap pairConcat [(a, b), (c, d)]
   where
@@ -133,18 +142,28 @@ concatQuads a b c d = concatMap pairConcat [(a, b), (c, d)]
     rhf = map (++ "\n") . lines
     pairConcat (x, y) = concat $ zipWith (++) (lhf x) (rhf y)
 
+instance
+  (Show m, BirdWalk (Matrix ('S n) m), BirdWalk (Matrix n m), Size (Matrix n m)) =>
+  Show (Matrix ('S n) m)
+  where
+  show mat = s
+    where
+      (topMax, s) = walk topMax mat
+
 class Size a where
   size :: a -> Int
 
 instance Size (Matrix 'Z m) where
-  size (UnitMatrix _) = 1
-  size Empty = 1
+  size Empty = 0
 
-instance (Size (Matrix n m)) => Size (Matrix ('S n) m) where
+instance Size (Matrix ('S 'Z) m) where
+  size _ = 1
+
+instance (Size (Matrix ('S n) m)) => Size (Matrix ('S ('S n)) m) where
   size m = case m of
     SquareMatrix a b _ _ -> size a + size b
     UpperRightTriangularMatrix a b _ -> size a + size b
-    Empty -> if n > 0 then 2 * n else 1
+    Empty -> 2 * n
       where
         helper :: Matrix ('S n) m -> Matrix n m
         helper _ = Empty
@@ -164,22 +183,26 @@ instance Functor (Matrix n) where
   fmap _ Empty = Empty
 
 instance Ring a => Ring (Matrix 'Z a) where
-  zero = UnitMatrix zero
+  zero = Empty
   add = undefined
   mul = undefined
 
-instance (Ring a, Applicative (Matrix n)) => Ring (Matrix ('S n) a) where
+instance (Ring a, Applicative (Matrix ('S n))) => Ring (Matrix ('S ('S n)) a) where
   zero = Empty
   add = (<*>) . (add <$>)
   mul = (<*>) . (mul <$>)
 
 instance Applicative (Matrix 'Z) where
+  pure = const Empty
+  _ <*> _ = Empty
+
+instance Applicative (Matrix ('S 'Z)) where
   pure = UnitMatrix
   (UnitMatrix a) <*> (UnitMatrix b) = UnitMatrix $ a b
   Empty <*> _ = Empty
   _ <*> Empty = Empty
 
-instance Applicative (Matrix n) => Applicative (Matrix ('S n)) where
+instance Applicative (Matrix ('S n)) => Applicative (Matrix ('S ('S n))) where
   pure m = SquareMatrix (pure m) (pure m) (pure m) (pure m)
   (SquareMatrix a b c d) <*> (SquareMatrix e f g h) = SquareMatrix (a <*> e) (b <*> f) (c <*> g) (d <*> h)
   (UpperRightTriangularMatrix a b d) <*> (UpperRightTriangularMatrix e f h) = UpperRightTriangularMatrix (a <*> e) (b <*> f) (d <*> h)
