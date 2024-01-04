@@ -1,135 +1,195 @@
+{-# LANGUAGE DataKinds #-}
+{-# LANGUAGE FlexibleContexts #-}
+{-# LANGUAGE FlexibleInstances #-}
+{-# LANGUAGE GADTs #-}
 {-# LANGUAGE InstanceSigs #-}
+{-# LANGUAGE PolyKinds #-}
+{-# LANGUAGE TypeFamilies #-}
 
 module SparseMatrix where
 
 import GHC.Float
 import Ring
 
-data Matrix m
-  = SquareMatrix Int (Matrix m) (Matrix m) (Matrix m) (Matrix m)
-  | UpperRightTriangularMatrix Int (Matrix m) (Matrix m) (Matrix m)
-  | UnitMatrix m
-  | Empty Int
-  deriving (Eq)
+-- Data
 
-instance Foldable Matrix where
-  foldr :: (a -> b -> b) -> b -> Matrix a -> b
-  foldr f acc (SquareMatrix _ a b c d) = foldr (flip $ foldr f) acc [a, b, c, d]
-  foldr f acc (UpperRightTriangularMatrix _ a b d) = foldr (flip $ foldr f) acc [a, b, d]
-  foldr f acc (UnitMatrix a) = f a acc
-  foldr _ acc (Empty _) = acc
+data N = Z | S N deriving (Eq, Show)
 
-instance Functor Matrix where
-  fmap :: (a -> b) -> Matrix a -> Matrix b
-  fmap f (SquareMatrix n a b c d) = SquareMatrix n (fmap f a) (fmap f b) (fmap f c) (fmap f d)
-  fmap f (UpperRightTriangularMatrix n a b d) = UpperRightTriangularMatrix n (fmap f a) (fmap f b) (fmap f d)
-  fmap f (UnitMatrix a) = UnitMatrix (f a)
-  fmap _ (Empty size) = Empty size
+data Matrix (n :: N) m where
+  SquareMatrix :: Matrix n m -> Matrix n m -> Matrix n m -> Matrix n m -> Matrix ('S n) m
+  UpperRightTriangularMatrix :: Matrix n m -> Matrix n m -> Matrix n m -> Matrix ('S n) m
+  UnitMatrix :: m -> Matrix 'Z m
+  Empty :: Matrix n m
 
-instance Ring a => Ring (Matrix a) where
-  zero = UnitMatrix zero
-  add = (<*>) . (add <$>)
-  mul = (<*>) . (mul <$>)
-
-instance Applicative Matrix where
-  pure :: a -> Matrix a
-  pure = UnitMatrix
-  (<*>) :: Matrix (a -> b) -> Matrix a -> Matrix b
-  (UnitMatrix f) <*> (SquareMatrix n a b c d) = SquareMatrix n (pure f) (pure f) (pure f) (pure f) <*> SquareMatrix n a b c d
-  (UnitMatrix f) <*> (UpperRightTriangularMatrix n a b d) = UpperRightTriangularMatrix n (pure f) (pure f) (pure f) <*> UpperRightTriangularMatrix n a b d
-  (UnitMatrix _) <*> (Empty n) = Empty n <*> Empty n
-  (UpperRightTriangularMatrix n a b d) <*> (UnitMatrix f) = UpperRightTriangularMatrix n a b d <*> UpperRightTriangularMatrix n (pure f) (pure f) (pure f)
-  (SquareMatrix n a b c d) <*> (UnitMatrix f) = SquareMatrix n a b c d <*> SquareMatrix n (pure f) (pure f) (pure f) (pure f)
-  (Empty n) <*> (UnitMatrix _) = Empty n <*> Empty n
-  (SquareMatrix n1 f1 f2 f3 f4) <*> (SquareMatrix n2 a b c d)
-    | n1 /= n2 = error "Matrix size mismatch!"
-    | otherwise = SquareMatrix n1 (f1 <*> a) (f2 <*> b) (f3 <*> c) (f4 <*> d)
-  (UpperRightTriangularMatrix n1 f1 f2 f3) <*> (UpperRightTriangularMatrix n2 a b c)
-    | n1 /= n2 = error "Matrix size mismatch!"
-    | otherwise = UpperRightTriangularMatrix n1 (f1 <*> a) (f2 <*> b) (f3 <*> c)
-  (UnitMatrix f) <*> (UnitMatrix x) = UnitMatrix (f x)
-  (Empty n1) <*> (Empty n2)
-    | n1 /= n2 = error "Matrix size mismatch!"
-    | otherwise = Empty n2
-  _ <*> _ = error "Matrix type mismatch!"
-
-instance (Semigroup a) => Semigroup (Matrix a) where
-  (<>) :: Matrix a -> Matrix a -> Matrix a
-  (<>) = (<*>) . ((<>) <$>)
-
-instance (Semigroup a) => Monoid (Matrix a) where
-  mempty = Empty 0
+-- Construct
 
 nextClosestSquare :: (Ord a, Num a) => a -> a
 nextClosestSquare n =
   head $ dropWhile (< n) [2 ^ x | x <- ([0 ..] :: [Int])]
 
-newUpperRightTriangularMatrix :: Show m => Int -> Matrix m
-newUpperRightTriangularMatrix n
-  | nsq < 2 = Empty 0
-  | nsq == 2 = UpperRightTriangularMatrix nsq (Empty smsq) (Empty smsq) (Empty smsq)
-  | otherwise = UpperRightTriangularMatrix nsq smallT smallSQ smallT
+-- newUpperRightTriangularMatrix :: Show m => Int -> Matrix n m
+-- newUpperRightTriangularMatrix n
+--   | nsq < 2 = Empty 0
+--   | nsq == 2 = UpperRightTriangularMatrix (Empty smsq) (Empty smsq) (Empty smsq)
+--   | otherwise = UpperRightTriangularMatrix smallT smallSQ smallT
+--   where
+--     smallT = newUpperRightTriangularMatrix (float2Int (int2Float n / 2.0))
+--     smallSQ = newSquareMatrix (float2Int (int2Float n / 2.0))
+--     smsq = float2Int (int2Float nsq / 2.0)
+--     nsq = nextClosestSquare n
+
+u2s :: Matrix n m -> Matrix n m
+u2s (UpperRightTriangularMatrix a b d) = SquareMatrix a b Empty d
+u2s _ = undefined
+
+-- u2s (UpperRightTriangularMatrix a b d) = SquareMatrix a b (Empty $ size a) d
+
+-- newSquareMatrix :: Int -> Matrix n m
+-- newSquareMatrix n
+--   | nsq < 2 = Empty 0
+--   | nsq == 2 = SquareMatrix (Empty smsq) (Empty smsq) (Empty smsq) (Empty smsq)
+--   | otherwise = newSquareMatrix_ smallM
+--   where
+--     nsq = nextClosestSquare n
+--     smsq = float2Int (int2Float nsq / 2.0)
+--     smallM = newSquareMatrix smsq
+
+newSquareMatrix_ :: Matrix n m -> Matrix ('S n) m
+newSquareMatrix_ m = SquareMatrix m m m m
+
+-- Algorithm
+
+v :: Matrix n a -> Matrix n b
+v SquareMatrix {} = undefined
+v UpperRightTriangularMatrix {} = undefined
+v (UnitMatrix _) = undefined
+v Empty = undefined
+
+-- Test stuff
+
+mat1 :: Int -> Matrix ('S ('S ('S 'Z))) Int
+mat1 n = UpperRightTriangularMatrix t2 as t2
   where
-    smallT = newUpperRightTriangularMatrix (float2Int (int2Float n / 2.0))
-    smallSQ = newSquareMatrix (float2Int (int2Float n / 2.0))
-    smsq = float2Int (int2Float nsq / 2.0)
-    nsq = nextClosestSquare n
-
-newSquareMatrix :: Int -> Matrix m
-newSquareMatrix n
-  | nsq < 2 = Empty 0
-  | nsq == 2 = SquareMatrix nsq (Empty smsq) (Empty smsq) (Empty smsq) (Empty smsq)
-  | otherwise = SquareMatrix nsq smallM smallM smallM smallM
-  where
-    nsq = nextClosestSquare n
-    smsq = float2Int (int2Float nsq / 2.0)
-    smallM = newSquareMatrix smsq
-
--- v :: SquareMatrix a -> SquareMatrix a -> SquareMatrix a -> SquareMatrix a
--- v a y b = undefined
-
-instance Show m => Show (Matrix m) where
-  show :: Show m => Matrix m -> String
-  show mat = str
-    where
-      (topMax, str) = walk mat
-      -- Richard Bird repmin-like function for printing a matrix with good spacing
-      walk :: (Show m) => Matrix m -> (Int, String)
-      walk (Empty size) = (0, concat . replicate size $ replicate ((topMax + 1) * size) ' ' ++ "\n")
-      walk (UnitMatrix m) = (length s, fixLength topMax s)
-        where
-          s = show m
-          fixLength n x
-            | len == 0 = replicate n '+'
-            | otherwise = replicate md ' ' ++ x ++ replicate dv ' '
-            where
-              len = length x
-              (dv, md) = n `divMod` len
-      walk (SquareMatrix _ a b c d) = (foldr max 0 ns, concatQuads sa sb sc sd)
-        where
-          (ns, [sa, sb, sc, sd]) = unzip $ map walk [a, b, c, d]
-      walk (UpperRightTriangularMatrix size a b d) = (foldr max 0 ns, concatQuads sa sb sc sd)
-        where
-          (ns, [sa, sb, sc, sd]) = unzip $ map walk [a, b, Empty (float2Int (int2Float size / 2.0)), d]
-
-      concatQuads :: String -> String -> String -> String -> String
-      concatQuads a b c d = concatMap pairConcat [(a, b), (c, d)]
-        where
-          lhf = lines
-          rhf = map (++ "\n") . lines
-          pairConcat (x, y) = concat $ zipWith (++) (lhf x) (rhf y)
-
-mat1 :: Show a => a -> Matrix a
-mat1 n = UpperRightTriangularMatrix 8 t2 as t2
-  where
-    a = SquareMatrix 2 b c d e
-    b = UnitMatrix n -- :: Matrix a
+    a = SquareMatrix b c d e
+    b = (+ 1) <$> UnitMatrix n -- :: Matrix a
     c = UnitMatrix n -- :: Matrix a
     d = UnitMatrix n -- :: Matrix a
     e = UnitMatrix n -- :: Matrix a
-    as = SquareMatrix 4 a a a a
-    t = UpperRightTriangularMatrix 2 (UnitMatrix n) (UnitMatrix n) (UnitMatrix n)
-    t2 = UpperRightTriangularMatrix 4 t a t
+    as = SquareMatrix a (subtract 1 <$> a) a (subtract 1 <$> a)
+    t = UpperRightTriangularMatrix (UnitMatrix n) (UnitMatrix n) (UnitMatrix n)
+    t2 = UpperRightTriangularMatrix t a t
 
-sqm :: (Show a) => a -> Matrix a
-sqm n = SquareMatrix 16 (mat1 n) (mat1 n) (mat1 n) (mat1 n)
+mat2 n = SquareMatrix (mat1 n) (mat1 n) (mat1 n) (mat1 n)
+
+-- Instances
+
+class (Show a) => BirdWalk a where
+  walk :: Int -> a -> (Int, String)
+
+instance (Show m) => Show (Matrix 'Z m) where
+  show m = s
+    where
+      (topMax, s) = walk topMax m
+
+instance (Show m) => BirdWalk (Matrix 'Z m) where
+  walk topMax Empty = (0, concat . replicate len $ replicate ((topMax + 1) * len) ' ' ++ "\n")
+    where
+      len = 1
+  walk topMax (UnitMatrix m) = (length s, fixLength topMax s)
+    where
+      s = show m
+      fixLength n x
+        | len == 0 = replicate n '+'
+        | otherwise = replicate md ' ' ++ x ++ replicate dv ' '
+        where
+          len = length x
+          (dv, md) = n `divMod` len
+
+instance
+  (Show m, Size (Matrix n m), BirdWalk (Matrix n m)) =>
+  BirdWalk (Matrix ('S n) m)
+  where
+  walk topMax mat = case mat of
+    (SquareMatrix a b c d) -> (foldr max 0 ns, concatQuads sa sb sc sd)
+      where
+        (ns, [sa, sb, sc, sd]) = unzip $ map (walk topMax) [a, b, c, d]
+    (UpperRightTriangularMatrix a b d) -> (foldr max 0 ns, concatQuads sa sb sc sd)
+      where
+        (ns, [sa, sb, sc, sd]) = unzip $ map (walk topMax) [a, b, Empty, d]
+    Empty -> (0, concat . replicate (size mat) $ replicate ((topMax + 1) * size mat) ' ' ++ "\n")
+
+instance
+  (Show m, BirdWalk (Matrix n m), Size (Matrix n m)) =>
+  Show (Matrix ('S n) m)
+  where
+  show mat = s
+    where
+      (topMax, s) = walk topMax mat
+
+concatQuads :: String -> String -> String -> String -> String
+concatQuads a b c d = concatMap pairConcat [(a, b), (c, d)]
+  where
+    lhf = lines
+    rhf = map (++ "\n") . lines
+    pairConcat (x, y) = concat $ zipWith (++) (lhf x) (rhf y)
+
+class Size a where
+  size :: a -> Int
+
+instance Size (Matrix 'Z m) where
+  size (UnitMatrix _) = 1
+  size Empty = 1
+
+instance (Size (Matrix n m)) => Size (Matrix ('S n) m) where
+  size m = case m of
+    SquareMatrix a b _ _ -> size a + size b
+    UpperRightTriangularMatrix a b _ -> size a + size b
+    Empty -> if n > 0 then 2 * n else 1
+      where
+        helper :: Matrix ('S n) m -> Matrix n m
+        helper _ = Empty
+        n = size $ helper m
+
+instance Foldable (Matrix n) where
+  foldr :: (a -> b -> b) -> b -> Matrix n a -> b
+  foldr f acc (SquareMatrix a b c d) = foldr (flip $ foldr f) acc [a, b, c, d]
+  foldr f acc (UpperRightTriangularMatrix a b d) = foldr (flip $ foldr f) acc [a, b, d]
+  foldr f acc (UnitMatrix a) = f a acc
+  foldr _ acc Empty = acc
+
+instance Functor (Matrix n) where
+  fmap f (SquareMatrix a b c d) = SquareMatrix (fmap f a) (fmap f b) (fmap f c) (fmap f d)
+  fmap f (UpperRightTriangularMatrix a b d) = UpperRightTriangularMatrix (fmap f a) (fmap f b) (fmap f d)
+  fmap f (UnitMatrix a) = UnitMatrix (f a)
+  fmap _ Empty = Empty
+
+instance Ring a => Ring (Matrix 'Z a) where
+  zero = UnitMatrix zero
+  add = undefined
+  mul = undefined
+
+instance (Ring a, Applicative (Matrix n)) => Ring (Matrix ('S n) a) where
+  zero = Empty
+  add = (<*>) . (add <$>)
+  mul = (<*>) . (mul <$>)
+
+instance Applicative (Matrix 'Z) where
+  pure = UnitMatrix
+  (UnitMatrix a) <*> (UnitMatrix b) = UnitMatrix $ a b
+  Empty <*> _ = Empty
+  _ <*> Empty = Empty
+
+instance Applicative (Matrix n) => Applicative (Matrix ('S n)) where
+  pure m = SquareMatrix (pure m) (pure m) (pure m) (pure m)
+  (SquareMatrix a b c d) <*> (SquareMatrix e f g h) = SquareMatrix (a <*> e) (b <*> f) (c <*> g) (d <*> h)
+  (UpperRightTriangularMatrix a b d) <*> (UpperRightTriangularMatrix e f h) = UpperRightTriangularMatrix (a <*> e) (b <*> f) (d <*> h)
+  (UpperRightTriangularMatrix a b d) <*> (SquareMatrix e f _ h) = UpperRightTriangularMatrix (a <*> e) (b <*> f) (d <*> h)
+  (SquareMatrix a b _ d) <*> (UpperRightTriangularMatrix e f h) = UpperRightTriangularMatrix (a <*> e) (b <*> f) (d <*> h)
+  Empty <*> _ = Empty
+  _ <*> Empty = Empty
+
+instance (Applicative (Matrix n), Semigroup a) => Semigroup (Matrix n a) where
+  (<>) = (<*>) . ((<>) <$>)
+
+instance (Applicative (Matrix n), Semigroup a) => Monoid (Matrix n a) where
+  mempty = Empty

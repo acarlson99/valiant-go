@@ -2,8 +2,6 @@ module Ring where
 
 import Data.Set (Set, fromList, toList, union)
 
--- import SparseMatrix
-
 -- | The 'Ring' class is used for ring-like datatypes.
 --
 -- The following operator interactions are expected to hold:
