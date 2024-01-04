@@ -18,15 +18,22 @@ import Ring
 --            https://stackoverflow.com/questions/43156781/haskell-gadts-making-a-type-safe-tensor-types-for-riemannian-geometry
 data N = Z | S N deriving (Eq, Show)
 
-data Matrix (n :: N) m where
-  SquareMatrix :: Matrix ('S n) m -> Matrix ('S n) m -> Matrix ('S n) m -> Matrix ('S n) m -> Matrix ('S ('S n)) m
-  UpperRightTriangularMatrix :: Matrix ('S n) m -> Matrix ('S n) m -> Matrix ('S n) m -> Matrix ('S ('S n)) m
-  UnitMatrix :: m -> Matrix ('S 'Z) m
+type SqShape  s = ((s,s),
+                   (s,s))
+type UTrShape s u = (s,u
+                      ,s)
+
+
+-- | Matrix n a
+data Matrix (n :: N) a where
+  SquareMatrix :: Matrix n a -> Matrix n a -> Matrix n a -> Matrix n a -> Matrix ('S n) a
+  UpperRightTriangularMatrix :: Matrix n a -> Matrix n a -> Matrix n a -> Matrix ('S n) a
+  UnitMatrix :: a -> Matrix 'Z a
   Empty :: Matrix n m
 
 -- TODO: this should not remain unused
 class IsZeroType n where
-  isZeroType :: Matrix n m -> Bool
+  isZeroType :: Matrix n a -> Bool
 
 instance IsZeroType 'Z where
   isZeroType _ = True
@@ -36,18 +43,28 @@ instance IsZeroType n => IsZeroType ('S n) where
 
 -- Test stuff
 
-mat1 n = UpperRightTriangularMatrix t2 as t2
-  where
-    a = SquareMatrix b c d e
-    b = (+ 1) <$> UnitMatrix n -- :: Matrix a
-    c = UnitMatrix n -- :: Matrix a
-    d = UnitMatrix n -- :: Matrix a
-    e = UnitMatrix n -- :: Matrix a
-    as = SquareMatrix a (subtract 1 <$> a) a (subtract 1 <$> a)
-    t = UpperRightTriangularMatrix (UnitMatrix n) (UnitMatrix n) (UnitMatrix n)
-    t2 = UpperRightTriangularMatrix t a t
+type One = 'S Z
+type Two = 'S One
+type Three = 'S Two
 
-mat2 n = SquareMatrix (mat1 n) (mat1 n) (mat1 n) (mat1 n)
+sq1, ut1 :: Num a => a -> Matrix One a
+sq1 n = a
+  where
+    a = SquareMatrix  b c
+                      d e
+    b = (+ 1) <$> UnitMatrix n
+    c =           UnitMatrix n
+    d =           UnitMatrix n
+    e =           UnitMatrix n
+ut1 n = UpperRightTriangularMatrix u u u where u = UnitMatrix n
+
+sq2, ut2 :: Num a => a -> Matrix Two a
+sq2 n = SquareMatrix a (subtract 1 <$> a) a (subtract 1 <$> a) where a = sq1 n
+ut2 n = UpperRightTriangularMatrix t a t where t = ut1 n; a = sq1 n
+
+sq3, ut3 :: Num a => a -> Matrix Three a
+sq3 n = SquareMatrix s Empty s s where s = sq2 n
+ut3 n = UpperRightTriangularMatrix t2 s t2 where t2 = ut2 n; s = sq2 n
 
 ------------------------ Functors and things -----------------------------------
 
@@ -66,38 +83,68 @@ instance Functor (Matrix n) where
 
 instance Ring a => Ring (Matrix 'Z a) where
   zero = Empty
-  add = undefined
-  mul = undefined
+  add = addZM
+  mul = mulZM
 
-instance (Ring a, Applicative (Matrix ('S n))) => Ring (Matrix ('S ('S n)) a) where
+addZM :: Ring a => Matrix Z a -> Matrix Z a -> Matrix Z a
+addZM Empty y = y
+addZM x Empty = x
+addZM (UnitMatrix a) (UnitMatrix b) = UnitMatrix (add a b)
+
+mulZM :: Ring a => Matrix Z a -> Matrix Z a -> Matrix Z a
+mulZM Empty _y = Empty
+mulZM _x Empty = Empty
+mulZM (UnitMatrix a) (UnitMatrix b) = UnitMatrix (mul a b)
+
+instance (Ring a, Ring (Matrix n a), Applicative (Matrix n), Applicative (Matrix ('S n))) => Ring (Matrix ('S n) a) where
   zero = Empty
-  add = (<*>) . (add <$>)
-  mul = (<*>) . (mul <$>)
+  add = addSM
+  mul = mulSM
+
+addSM ::  (Ring a, Applicative (Matrix ('S n))) =>  -- Ring (Matrix n a),
+          Matrix ('S n) a -> Matrix ('S n) a -> Matrix ('S n) a
+addSM Empty y = y
+addSM x Empty = x
+addSM x y = add <$> x <*> y
+
+mulSM ::  (Ring (Matrix n a), Applicative (Matrix n)) =>
+          Matrix ('S n) a -> Matrix ('S n) a -> Matrix ('S n) a
+mulSM Empty _y = Empty
+mulSM _x Empty = Empty
+mulSM (SquareMatrix a00 a01
+                    a10 a11)
+      (SquareMatrix b00 b01
+                    b10 b11) =
+      (SquareMatrix c00 c01
+                    c10 c11)
+  where
+    (+) = add; (*) = mul
+    c00 = (a00*b00) + (a01*b10);   c01 = (a00*b00) + (a01*b10)
+    c10 = (a10*b01) + (a11*b11);   c11 = (a10*b01) + (a11*b11)
+
 
 instance Applicative (Matrix 'Z) where
-  pure = const Empty
-  _ <*> _ = Empty
-
-instance Applicative (Matrix ('S 'Z)) where
   pure = UnitMatrix
   (UnitMatrix a) <*> (UnitMatrix b) = UnitMatrix $ a b
   Empty <*> _ = Empty
   _ <*> Empty = Empty
 
-instance Applicative (Matrix ('S n)) => Applicative (Matrix ('S ('S n))) where
+instance Applicative (Matrix n) => Applicative (Matrix ('S n)) where
   pure m = SquareMatrix (pure m) (pure m) (pure m) (pure m)
   (SquareMatrix a b c d) <*> (SquareMatrix e f g h) = SquareMatrix (a <*> e) (b <*> f) (c <*> g) (d <*> h)
   (UpperRightTriangularMatrix a b d) <*> (UpperRightTriangularMatrix e f h) = UpperRightTriangularMatrix (a <*> e) (b <*> f) (d <*> h)
   (UpperRightTriangularMatrix a b d) <*> (SquareMatrix e f _ h) = UpperRightTriangularMatrix (a <*> e) (b <*> f) (d <*> h)
   (SquareMatrix a b _ d) <*> (UpperRightTriangularMatrix e f h) = UpperRightTriangularMatrix (a <*> e) (b <*> f) (d <*> h)
-  Empty <*> _ = Empty
-  _ <*> Empty = Empty
+  Empty <*> _ = error "Warning: should fill in zeroes on the left"  -- but we don't have a "zero" around
+  _ <*> Empty = error "Warning: should fill in zeroes on the right" -- but we don't have a "zero" around
+
 
 instance (Applicative (Matrix n), Semigroup a) => Semigroup (Matrix n a) where
   (<>) = (<*>) . ((<>) <$>)
 
 instance (Applicative (Matrix n), Semigroup a) => Monoid (Matrix n a) where
   mempty = Empty
+
 
 ---------------------------------- Show ----------------------------------------
 
@@ -110,12 +157,10 @@ instance (Show m) => Show (Matrix 'Z m) where
     where
       (topMax, s) = walk topMax m
 
-instance (Show m) => BirdWalk (Matrix 'Z m) where
+instance (Show m, Show (Matrix 'Z m)) => BirdWalk (Matrix 'Z m) where
   walk topMax Empty = (0, concat . replicate len $ replicate ((topMax + 1) * len) ' ' ++ "\n")
     where
       len = 1
-
-instance (Show m, Show (Matrix ('S 'Z) m)) => BirdWalk (Matrix ('S 'Z) m) where
   walk topMax (UnitMatrix m) = (length s, fixLength topMax s)
     where
       s = show m
@@ -129,8 +174,8 @@ instance (Show m, Show (Matrix ('S 'Z) m)) => BirdWalk (Matrix ('S 'Z) m) where
   walk topMax mat = (0, concat . replicate (size mat) $ replicate ((topMax + 1) * size mat) ' ' ++ "\n")
 
 instance
-  (Show m, Show (Matrix ('S ('S n)) m), Size (Matrix ('S n) m), BirdWalk (Matrix ('S n) m)) =>
-  BirdWalk (Matrix ('S ('S n)) m)
+  (Show m, Show (Matrix ('S n) m), Size (Matrix ('S n) m), BirdWalk (Matrix n m)) =>
+  BirdWalk (Matrix ('S n) m)
   where
   walk topMax mat = case mat of
     (SquareMatrix a b c d) -> (foldr max 0 ns, concatQuads sa sb sc sd)
@@ -160,20 +205,13 @@ class Size a where
   size :: a -> Int
 
 instance Size (Matrix 'Z m) where
-  size Empty = 0
-
-instance Size (Matrix ('S 'Z) m) where
   size _ = 1
 
-instance (Size (Matrix ('S n) m)) => Size (Matrix ('S ('S n)) m) where
-  size m = case m of
-    SquareMatrix a b _ _ -> size a + size b
-    UpperRightTriangularMatrix a b _ -> size a + size b
-    Empty -> 2 * n
-      where
+instance (Size (Matrix n m)) => Size (Matrix ('S n) m) where
+  size m = 2 * size (helper m)
+    where
         helper :: Matrix ('S n) m -> Matrix n m
         helper _ = Empty
-        n = size $ helper m
 
 ---------------------------- Constructors --------------------------------------
 
@@ -208,7 +246,7 @@ u2s _ = undefined
 --     smsq = float2Int (int2Float nsq / 2.0)
 --     smallM = newSquareMatrix smsq
 
-newSquareMatrix_ :: Matrix ('S n) m -> Matrix ('S ('S n)) m
+newSquareMatrix_ :: Matrix n m -> Matrix ('S n) m
 newSquareMatrix_ m = SquareMatrix m m m m
 
 ------------------------------- Algorithm --------------------------------------
@@ -218,3 +256,6 @@ v SquareMatrix {} = undefined
 v UpperRightTriangularMatrix {} = undefined
 v (UnitMatrix _) = undefined
 v Empty = undefined
+
+{-
+-}
