@@ -18,11 +18,14 @@ import Ring
 --            https://stackoverflow.com/questions/43156781/haskell-gadts-making-a-type-safe-tensor-types-for-riemannian-geometry
 data N = Z | S N deriving (Eq, Show)
 
-type SqShape  s = ((s,s),
-                   (s,s))
+{- ORMOLU_DISABLE -}
+
+type SqShape s   = ((s,s),
+                    (s,s))
 type UTrShape s u = (s,u
                       ,s)
 
+{- ORMOLU_ENABLE -}
 
 -- | Matrix n a
 data Matrix (n :: N) a where
@@ -43,10 +46,13 @@ instance IsZeroType n => IsZeroType ('S n) where
 
 -- Test stuff
 
-type One = 'S Z
+type One = 'S 'Z
+
 type Two = 'S One
+
 type Three = 'S Two
 
+{- ORMOLU_DISABLE -}
 sq1, ut1 :: Num a => a -> Matrix One a
 sq1 n = a
   where
@@ -57,6 +63,7 @@ sq1 n = a
     d =           UnitMatrix n
     e =           UnitMatrix n
 ut1 n = UpperRightTriangularMatrix u u u where u = UnitMatrix n
+{- ORMOLU_ENABLE -}
 
 sq2, ut2 :: Num a => a -> Matrix Two a
 sq2 n = SquareMatrix a (subtract 1 <$> a) a (subtract 1 <$> a) where a = sq1 n
@@ -101,27 +108,27 @@ instance (Ring a, Ring (Matrix n a), Applicative (Matrix n), Applicative (Matrix
   add = addSM
   mul = mulSM
 
-addSM ::  (Ring a, Applicative (Matrix ('S n))) =>  -- Ring (Matrix n a),
-          Matrix ('S n) a -> Matrix ('S n) a -> Matrix ('S n) a
+addSM :: (Ring a, Applicative (Matrix ('S n))) => Matrix ('S n) a -> Matrix ('S n) a -> Matrix ('S n) a
 addSM Empty y = y
 addSM x Empty = x
 addSM x y = add <$> x <*> y
 
-mulSM ::  (Ring (Matrix n a), Applicative (Matrix n)) =>
-          Matrix ('S n) a -> Matrix ('S n) a -> Matrix ('S n) a
+mulSM :: (Ring (Matrix n a), Applicative (Matrix n)) => Matrix ('S n) a -> Matrix ('S n) a -> Matrix ('S n) a
 mulSM Empty _y = Empty
 mulSM _x Empty = Empty
+{- ORMOLU_DISABLE -}
 mulSM (SquareMatrix a00 a01
                     a10 a11)
       (SquareMatrix b00 b01
                     b10 b11) =
-      (SquareMatrix c00 c01
-                    c10 c11)
+      SquareMatrix c00 c01
+                    c10 c11
   where
     (+) = add; (*) = mul
     c00 = (a00*b00) + (a01*b10);   c01 = (a00*b00) + (a01*b10)
     c10 = (a10*b01) + (a11*b11);   c11 = (a10*b01) + (a11*b11)
-
+{- ORMOLU_ENABLE -}
+mulSM _ _ = undefined
 
 instance Applicative (Matrix 'Z) where
   pure = UnitMatrix
@@ -135,16 +142,14 @@ instance Applicative (Matrix n) => Applicative (Matrix ('S n)) where
   (UpperRightTriangularMatrix a b d) <*> (UpperRightTriangularMatrix e f h) = UpperRightTriangularMatrix (a <*> e) (b <*> f) (d <*> h)
   (UpperRightTriangularMatrix a b d) <*> (SquareMatrix e f _ h) = UpperRightTriangularMatrix (a <*> e) (b <*> f) (d <*> h)
   (SquareMatrix a b _ d) <*> (UpperRightTriangularMatrix e f h) = UpperRightTriangularMatrix (a <*> e) (b <*> f) (d <*> h)
-  Empty <*> _ = error "Warning: should fill in zeroes on the left"  -- but we don't have a "zero" around
+  Empty <*> _ = error "Warning: should fill in zeroes on the left" -- but we don't have a "zero" around
   _ <*> Empty = error "Warning: should fill in zeroes on the right" -- but we don't have a "zero" around
-
 
 instance (Applicative (Matrix n), Semigroup a) => Semigroup (Matrix n a) where
   (<>) = (<*>) . ((<>) <$>)
 
 instance (Applicative (Matrix n), Semigroup a) => Monoid (Matrix n a) where
   mempty = Empty
-
 
 ---------------------------------- Show ----------------------------------------
 
@@ -170,8 +175,6 @@ instance (Show m, Show (Matrix 'Z m)) => BirdWalk (Matrix 'Z m) where
         where
           len = length x
           (dv, md) = n `divMod` len
-  --          Empty
-  walk topMax mat = (0, concat . replicate (size mat) $ replicate ((topMax + 1) * size mat) ' ' ++ "\n")
 
 instance
   (Show m, Show (Matrix ('S n) m), Size (Matrix ('S n) m), BirdWalk (Matrix n m)) =>
@@ -210,8 +213,8 @@ instance Size (Matrix 'Z m) where
 instance (Size (Matrix n m)) => Size (Matrix ('S n) m) where
   size m = 2 * size (helper m)
     where
-        helper :: Matrix ('S n) m -> Matrix n m
-        helper _ = Empty
+      helper :: Matrix ('S n) m -> Matrix n m
+      helper _ = Empty
 
 ---------------------------- Constructors --------------------------------------
 
@@ -256,6 +259,3 @@ v SquareMatrix {} = undefined
 v UpperRightTriangularMatrix {} = undefined
 v (UnitMatrix _) = undefined
 v Empty = undefined
-
-{-
--}
