@@ -32,7 +32,7 @@ data Matrix (n :: N) a where
   SquareMatrix :: Matrix n a -> Matrix n a -> Matrix n a -> Matrix n a -> Matrix ('S n) a
   UpperRightTriangularMatrix :: Matrix n a -> Matrix n a -> Matrix n a -> Matrix ('S n) a
   UnitMatrix :: a -> Matrix 'Z a
-  Empty :: Matrix n m
+  Empty :: Matrix n a
 
 -- TODO: this should not remain unused
 class IsZeroType n where
@@ -93,12 +93,12 @@ instance Ring a => Ring (Matrix 'Z a) where
   add = addZM
   mul = mulZM
 
-addZM :: Ring a => Matrix Z a -> Matrix Z a -> Matrix Z a
+addZM :: Ring a => Matrix 'Z a -> Matrix 'Z a -> Matrix 'Z a
 addZM Empty y = y
 addZM x Empty = x
 addZM (UnitMatrix a) (UnitMatrix b) = UnitMatrix (add a b)
 
-mulZM :: Ring a => Matrix Z a -> Matrix Z a -> Matrix Z a
+mulZM :: Ring a => Matrix 'Z a -> Matrix 'Z a -> Matrix 'Z a
 mulZM Empty _y = Empty
 mulZM _x Empty = Empty
 mulZM (UnitMatrix a) (UnitMatrix b) = UnitMatrix (mul a b)
@@ -113,22 +113,23 @@ addSM Empty y = y
 addSM x Empty = x
 addSM x y = add <$> x <*> y
 
+-- see Bernardy and Claessen, “Efficient Divide-and-Conquer Parsing of Practical Context-Free Languages.”
 mulSM :: (Ring (Matrix n a), Applicative (Matrix n)) => Matrix ('S n) a -> Matrix ('S n) a -> Matrix ('S n) a
 mulSM Empty _y = Empty
 mulSM _x Empty = Empty
 {- ORMOLU_DISABLE -}
-mulSM (SquareMatrix a00 a01
-                    a10 a11)
-      (SquareMatrix b00 b01
-                    b10 b11) =
-      SquareMatrix c00 c01
-                    c10 c11
+mulSM (SquareMatrix a11 a12
+                    a21 a22)
+      (SquareMatrix b11 b12
+                    b21 b22) =
+      SquareMatrix c11 c12
+                    c21 c22
   where
     (+) = add; (*) = mul
-    c00 = (a00*b00) + (a01*b10);   c01 = (a00*b00) + (a01*b10)
-    c10 = (a10*b01) + (a11*b11);   c11 = (a10*b01) + (a11*b11)
+    c11 = (a11*b11) + (a12*b21);   c12 = (a11*b12) + (a12*b22)
+    c21 = (a21*b11) + (a22*b21);   c22 = (a21*b21) + (a22*b22)
 {- ORMOLU_ENABLE -}
-mulSM _ _ = undefined
+mulSM _ _ = error "Illegal type combination for mulSM"
 
 instance Applicative (Matrix 'Z) where
   pure = UnitMatrix
@@ -254,8 +255,15 @@ newSquareMatrix_ m = SquareMatrix m m m m
 
 ------------------------------- Algorithm --------------------------------------
 
-v :: Matrix n a -> Matrix n b
-v SquareMatrix {} = undefined
-v UpperRightTriangularMatrix {} = undefined
-v (UnitMatrix _) = undefined
-v Empty = undefined
+-- see Bernardy and Claessen, “Efficient Divide-and-Conquer Parsing of Practical Context-Free Languages.”
+v :: Matrix n a -> Matrix n a -> Matrix n a -> Matrix n a
+v _ Empty _ = Empty
+v Empty (UnitMatrix x) Empty = UnitMatrix x
+-- TODO: this v
+-- v (UpperRightTriangularMatrix a11 a12 a22) (SquareMatrix x11 x12 x21 x22) (UpperRightTriangularMatrix b11 b12 b22) = SquareMatrix y11 y12 y21 y22
+--   where
+--     y21 = v a22 x21 b11
+--     y11 = v a11 ((x11 `add` a12) `mul` y21) b11 -- TODO: n=('S n1) => (Matrix n1) is not a Ring??
+--     y22 = v a22 ((x22 `add` y21) `mul` b12) b22
+--     y12 = v a11 ((x12 `add` a12) `mul` (y22 `add` y11) `mul` b12) b22
+v _ _ _ = undefined
