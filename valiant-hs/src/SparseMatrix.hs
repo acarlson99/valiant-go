@@ -276,8 +276,18 @@ instance (Size n, ConstructMatrix n) => ConstructMatrix ('S n) where
       x = Empty
       b = constructMatrix bs
 
-sq :: Matrix ('S ('S ('S 'Z))) String
-sq = constructMatrix "abcdef"
+-- TODO: This type signature changes the value of `sq`
+--       I think I need to lift `strlen` to the type level and somehow
+--       at compile time infer
+--       `n = (/2) Len s => typeOf (constructMatrix s) == (n*'S `Cons` 'Z)`
+sqa :: Matrix ('S 'Z) String
+sqb :: Matrix ('S ('S ('S 'Z))) String
+sqc :: Matrix ('S ('S ('S ('S 'Z)))) String
+(sqa, sqb, sqc) = (sqa_, sqb_, sqc_)
+  where
+    sqa_ = constructMatrix "abcdef"
+    sqb_ = constructMatrix "abcdef"
+    sqc_ = constructMatrix "abcdef"
 
 -- see Bernardy and Claessen, “Efficient Divide-and-Conquer Parsing of Practical Context-Free Languages.”
 class Valiant a where
