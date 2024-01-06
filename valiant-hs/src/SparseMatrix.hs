@@ -1,4 +1,3 @@
-{-# LANGUAGE AllowAmbiguousTypes #-}
 {-# LANGUAGE DataKinds #-}
 {-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE FlexibleInstances #-}
@@ -7,9 +6,6 @@
 {-# LANGUAGE MultiParamTypeClasses #-}
 {-# LANGUAGE PolyKinds #-}
 {-# LANGUAGE ScopedTypeVariables #-}
-{-# LANGUAGE TypeFamilies #-}
--- TODO: find a way to remove UndecidableInstances (seems like a bad idea).  Likely this would be by using `IsZeroType`
-{-# LANGUAGE UndecidableInstances #-}
 
 module SparseMatrix where
 
@@ -32,12 +28,15 @@ type UTrShape s u = (s,u
 
 -- | Matrix n a
 data Matrix (n :: N) a where
-  SquareMatrix :: Matrix n a -> Matrix n a -> Matrix n a -> Matrix n a -> Matrix ('S n) a
-  UpperRightTriangularMatrix :: Matrix n a -> Matrix n a -> Matrix n a -> Matrix ('S n) a
-  UnitMatrix :: a -> Matrix 'Z a
+  SquareMatrix :: Matrix n a -> Matrix n a -> Matrix n a -> Matrix n a -> NonZeroMatrix n a
+  UpperRightTriangularMatrix :: Matrix n a -> Matrix n a -> Matrix n a -> NonZeroMatrix n a
+  UnitMatrix :: a -> ZeroMatrix a
   Empty :: Matrix n a
 
--- TODO: this should not remain unused
+type ZeroMatrix = Matrix 'Z
+
+type NonZeroMatrix (n :: N) = Matrix ('S n)
+
 class IsZeroType n where
   isZeroType :: Matrix n a -> Bool
 
@@ -91,33 +90,33 @@ instance Functor (Matrix n) where
   fmap f (UnitMatrix a) = UnitMatrix (f a)
   fmap _ Empty = Empty
 
-instance Ring a => Ring (Matrix 'Z a) where
+instance Ring a => Ring (ZeroMatrix a) where
   zero = Empty
   add = addZM
   mul = mulZM
 
-addZM :: Ring a => Matrix 'Z a -> Matrix 'Z a -> Matrix 'Z a
+addZM :: Ring a => ZeroMatrix a -> ZeroMatrix a -> ZeroMatrix a
 addZM Empty y = y
 addZM x Empty = x
 addZM (UnitMatrix a) (UnitMatrix b) = UnitMatrix (add a b)
 
-mulZM :: Ring a => Matrix 'Z a -> Matrix 'Z a -> Matrix 'Z a
+mulZM :: Ring a => ZeroMatrix a -> ZeroMatrix a -> ZeroMatrix a
 mulZM Empty _y = Empty
 mulZM _x Empty = Empty
 mulZM (UnitMatrix a) (UnitMatrix b) = UnitMatrix (mul a b)
 
-instance (Ring a, Ring (Matrix n a), Applicative (Matrix n), Applicative (Matrix ('S n))) => Ring (Matrix ('S n) a) where
+instance (Ring a, Ring (Matrix n a), Applicative (Matrix n), Applicative (NonZeroMatrix n)) => Ring (NonZeroMatrix n a) where
   zero = Empty
   add = addSM
   mul = mulSM
 
-addSM :: (Ring a, Applicative (Matrix ('S n))) => Matrix ('S n) a -> Matrix ('S n) a -> Matrix ('S n) a
+addSM :: (Ring a, Applicative (NonZeroMatrix n)) => NonZeroMatrix n a -> NonZeroMatrix n a -> NonZeroMatrix n a
 addSM Empty y = y
 addSM x Empty = x
 addSM x y = add <$> x <*> y
 
 -- see Bernardy and Claessen, “Efficient Divide-and-Conquer Parsing of Practical Context-Free Languages.”
-mulSM :: (Ring (Matrix n a), Applicative (Matrix n)) => Matrix ('S n) a -> Matrix ('S n) a -> Matrix ('S n) a
+mulSM :: (Ring (Matrix n a), Applicative (Matrix n)) => NonZeroMatrix n a -> NonZeroMatrix n a -> NonZeroMatrix n a
 mulSM Empty _y = Empty
 mulSM _x Empty = Empty
 {- ORMOLU_DISABLE -}
@@ -134,13 +133,13 @@ mulSM (SquareMatrix a11 a12
 {- ORMOLU_ENABLE -}
 mulSM _ _ = error "Illegal type combination for mulSM"
 
-instance Applicative (Matrix 'Z) where
+instance Applicative ZeroMatrix where
   pure = UnitMatrix
   (UnitMatrix a) <*> (UnitMatrix b) = UnitMatrix $ a b
   Empty <*> _ = Empty
   _ <*> Empty = Empty
 
-instance Applicative (Matrix n) => Applicative (Matrix ('S n)) where
+instance Applicative (Matrix n) => Applicative (NonZeroMatrix n) where
   pure m = SquareMatrix (pure m) (pure m) (pure m) (pure m)
   (SquareMatrix a b c d) <*> (SquareMatrix e f g h) = SquareMatrix (a <*> e) (b <*> f) (c <*> g) (d <*> h)
   (UpperRightTriangularMatrix a b d) <*> (UpperRightTriangularMatrix e f h) = UpperRightTriangularMatrix (a <*> e) (b <*> f) (d <*> h)
@@ -161,12 +160,12 @@ instance (Applicative (Matrix n), Semigroup a) => Monoid (Matrix n a) where
 class (Show a) => BirdWalk a where
   walk :: Int -> a -> (Int, String)
 
-instance (Show m) => Show (Matrix 'Z m) where
+instance (Show m) => Show (ZeroMatrix m) where
   show m = s
     where
       (topMax, s) = walk topMax m
 
-instance (Show m, Show (Matrix 'Z m)) => BirdWalk (Matrix 'Z m) where
+instance (Show m) => BirdWalk (ZeroMatrix m) where
   walk topMax Empty = (0, concat . replicate len $ replicate ((topMax + 1) * len) ' ' ++ "\n")
     where
       len = 1
@@ -181,8 +180,8 @@ instance (Show m, Show (Matrix 'Z m)) => BirdWalk (Matrix 'Z m) where
           (dv, md) = n `divMod` len
 
 instance
-  (Show m, Show (Matrix ('S n) m), Size (Matrix ('S n) m), BirdWalk (Matrix n m)) =>
-  BirdWalk (Matrix ('S n) m)
+  (Show m, Size (Matrix n m), BirdWalk (Matrix n m)) =>
+  BirdWalk (NonZeroMatrix n m)
   where
   walk topMax mat = case mat of
     (SquareMatrix a b c d) -> (foldr max 0 ns, concatQuads sa sb sc sd)
@@ -201,8 +200,8 @@ concatQuads a b c d = concatMap pairConcat [(a, b), (c, d)]
     pairConcat (x, y) = concat $ zipWith (++) (lhf x) (rhf y)
 
 instance
-  (Show m, BirdWalk (Matrix ('S n) m), BirdWalk (Matrix n m), Size (Matrix n m)) =>
-  Show (Matrix ('S n) m)
+  (Show m, BirdWalk (Matrix n m), Size (Matrix n m)) =>
+  Show (NonZeroMatrix n m)
   where
   show mat = s
     where
@@ -211,13 +210,13 @@ instance
 class Size a where
   size :: a -> Int
 
-instance Size (Matrix 'Z m) where
+instance Size (ZeroMatrix m) where
   size _ = 1
 
-instance (Size (Matrix n m)) => Size (Matrix ('S n) m) where
+instance (Size (Matrix n m)) => Size (NonZeroMatrix n m) where
   size m = 2 * size (helper m)
     where
-      helper :: Matrix ('S n) m -> Matrix n m
+      helper :: NonZeroMatrix n m -> Matrix n m
       helper _ = Empty
 
 ---------------------------- Constructors --------------------------------------
@@ -253,7 +252,7 @@ u2s _ = undefined
 --     smsq = float2Int (int2Float nsq / 2.0)
 --     smallM = newSquareMatrix smsq
 
-newSquareMatrix_ :: Matrix n m -> Matrix ('S n) m
+newSquareMatrix_ :: Matrix n m -> NonZeroMatrix n m
 newSquareMatrix_ m = SquareMatrix m m m m
 
 ------------------------------- Algorithm --------------------------------------
@@ -262,15 +261,15 @@ newSquareMatrix_ m = SquareMatrix m m m m
 class Valiant a where
   v :: a -> a -> a -> a
 
-instance Valiant (Matrix 'Z a) where
+instance Valiant (ZeroMatrix a) where
   v Empty (UnitMatrix x) Empty = UnitMatrix x
   v _ Empty _ = Empty
   v (UnitMatrix _) (UnitMatrix _) _ = undefined
   v Empty (UnitMatrix _) (UnitMatrix _) = undefined
 
-instance (Ring (Matrix n a), Valiant (Matrix n a)) => Valiant (Matrix ('S n) a) where
+instance (Ring (Matrix n a), Valiant (Matrix n a)) => Valiant (NonZeroMatrix n a) where
+  v :: (Ring (Matrix n a), Valiant (Matrix n a)) => NonZeroMatrix n a -> NonZeroMatrix n a -> NonZeroMatrix n a -> NonZeroMatrix n a
   v _ Empty _ = Empty
-  -- TODO: this v
   v (UpperRightTriangularMatrix a11 a12 a22) (SquareMatrix x11 x12 x21 x22) (UpperRightTriangularMatrix b11 b12 b22) = SquareMatrix y11 y12 y21 y22
     where
       y21 = v a22 x21 b11 :: Matrix n a
