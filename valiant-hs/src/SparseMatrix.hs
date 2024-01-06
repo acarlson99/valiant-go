@@ -180,7 +180,7 @@ instance (Show m) => BirdWalk (ZeroMatrix m) where
           (dv, md) = n `divMod` len
 
 instance
-  (Show m, Size (Matrix n m), BirdWalk (Matrix n m)) =>
+  (Show m, Size n, BirdWalk (Matrix n m)) =>
   BirdWalk (NonZeroMatrix n m)
   where
   walk topMax mat = case mat of
@@ -200,20 +200,20 @@ concatQuads a b c d = concatMap pairConcat [(a, b), (c, d)]
     pairConcat (x, y) = concat $ zipWith (++) (lhf x) (rhf y)
 
 instance
-  (Show m, BirdWalk (Matrix n m), Size (Matrix n m)) =>
+  (Show m, BirdWalk (Matrix n m), Size n) =>
   Show (NonZeroMatrix n m)
   where
   show mat = s
     where
       (topMax, s) = walk topMax mat
 
-class Size a where
-  size :: a -> Int
+class Size n where
+  size :: Matrix n a -> Int
 
-instance Size (ZeroMatrix m) where
+instance Size 'Z where
   size _ = 1
 
-instance (Size (Matrix n m)) => Size (NonZeroMatrix n m) where
+instance (Size n) => Size ('S n) where
   size m = 2 * size (helper m)
     where
       helper :: NonZeroMatrix n m -> Matrix n m
@@ -224,6 +224,10 @@ instance (Size (Matrix n m)) => Size (NonZeroMatrix n m) where
 nextClosestSquare :: (Ord a, Num a) => a -> a
 nextClosestSquare n =
   head $ dropWhile (< n) [2 ^ x | x <- ([0 ..] :: [Int])]
+
+lastClosestSquare :: (Ord a, Num a) => a -> a
+lastClosestSquare n =
+  last . (0 :) $ takeWhile (< n) [2 ^ x | x <- ([0 ..] :: [Int])]
 
 -- newUpperRightTriangularMatrix :: Show m => Int -> Matrix n m
 -- newUpperRightTriangularMatrix n
@@ -257,15 +261,31 @@ newSquareMatrix_ m = SquareMatrix m m m m
 
 ------------------------------- Algorithm --------------------------------------
 
+class ConstructMatrix n where
+  constructMatrix :: String -> Matrix n String
+
+instance ConstructMatrix 'Z where
+  constructMatrix s = UnitMatrix s
+
+instance (Size n, ConstructMatrix n) => ConstructMatrix ('S n) where
+  constructMatrix s = UpperRightTriangularMatrix a x b
+    where
+      n = size b
+      (as, bs) = splitAt n s
+      a = constructMatrix as
+      x = Empty
+      b = constructMatrix bs
+
+sq :: Matrix ('S ('S ('S 'Z))) String
+sq = constructMatrix "abcdef"
+
 -- see Bernardy and Claessen, “Efficient Divide-and-Conquer Parsing of Practical Context-Free Languages.”
 class Valiant a where
   v :: a -> a -> a -> a
 
-instance Valiant (ZeroMatrix a) where
+instance Ring a => Valiant (ZeroMatrix a) where
   v Empty (UnitMatrix x) Empty = UnitMatrix x
-  v _ Empty _ = Empty
-  v (UnitMatrix _) (UnitMatrix _) _ = undefined
-  v Empty (UnitMatrix _) (UnitMatrix _) = undefined
+  v _ x _ = x
 
 instance (Ring (Matrix n a), Valiant (Matrix n a)) => Valiant (NonZeroMatrix n a) where
   v :: (Ring (Matrix n a), Valiant (Matrix n a)) => NonZeroMatrix n a -> NonZeroMatrix n a -> NonZeroMatrix n a -> NonZeroMatrix n a
