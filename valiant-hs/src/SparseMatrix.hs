@@ -1,9 +1,12 @@
+{-# LANGUAGE AllowAmbiguousTypes #-}
 {-# LANGUAGE DataKinds #-}
 {-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE GADTs #-}
 {-# LANGUAGE InstanceSigs #-}
+{-# LANGUAGE MultiParamTypeClasses #-}
 {-# LANGUAGE PolyKinds #-}
+{-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE TypeFamilies #-}
 -- TODO: find a way to remove UndecidableInstances (seems like a bad idea).  Likely this would be by using `IsZeroType`
 {-# LANGUAGE UndecidableInstances #-}
@@ -256,14 +259,22 @@ newSquareMatrix_ m = SquareMatrix m m m m
 ------------------------------- Algorithm --------------------------------------
 
 -- see Bernardy and Claessen, “Efficient Divide-and-Conquer Parsing of Practical Context-Free Languages.”
-v :: Matrix n a -> Matrix n a -> Matrix n a -> Matrix n a
-v _ Empty _ = Empty
-v Empty (UnitMatrix x) Empty = UnitMatrix x
--- TODO: this v
--- v (UpperRightTriangularMatrix a11 a12 a22) (SquareMatrix x11 x12 x21 x22) (UpperRightTriangularMatrix b11 b12 b22) = SquareMatrix y11 y12 y21 y22
---   where
---     y21 = v a22 x21 b11
---     y11 = v a11 ((x11 `add` a12) `mul` y21) b11 -- TODO: n=('S n1) => (Matrix n1) is not a Ring??
---     y22 = v a22 ((x22 `add` y21) `mul` b12) b22
---     y12 = v a11 ((x12 `add` a12) `mul` (y22 `add` y11) `mul` b12) b22
-v _ _ _ = undefined
+class Valiant a where
+  v :: a -> a -> a -> a
+
+instance Valiant (Matrix 'Z a) where
+  v Empty (UnitMatrix x) Empty = UnitMatrix x
+  v _ Empty _ = Empty
+  v (UnitMatrix _) (UnitMatrix _) _ = undefined
+  v Empty (UnitMatrix _) (UnitMatrix _) = undefined
+
+instance (Ring (Matrix n a), Valiant (Matrix n a)) => Valiant (Matrix ('S n) a) where
+  v _ Empty _ = Empty
+  -- TODO: this v
+  v (UpperRightTriangularMatrix a11 a12 a22) (SquareMatrix x11 x12 x21 x22) (UpperRightTriangularMatrix b11 b12 b22) = SquareMatrix y11 y12 y21 y22
+    where
+      y21 = v a22 x21 b11 :: Matrix n a
+      y11 = v a11 ((x11 `add` a12) `mul` y21) b11
+      y22 = v a22 ((x22 `add` y21) `mul` b12) b22
+      y12 = v a11 ((x12 `add` a12) `mul` (y22 `add` y11) `mul` b12) b22
+  v _ _ _ = undefined
