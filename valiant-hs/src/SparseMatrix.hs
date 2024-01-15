@@ -6,16 +6,16 @@
 {-# LANGUAGE MultiParamTypeClasses #-}
 {-# LANGUAGE PolyKinds #-}
 {-# LANGUAGE ScopedTypeVariables #-}
+{-# LANGUAGE TypeFamilies #-}
+{-# LANGUAGE TypeOperators #-}
+{-# LANGUAGE UndecidableInstances #-}
 
 module SparseMatrix where
 
+import Nat
 import Ring
 
 -------------------------------- Data ------------------------------------------
-
--- Ideas from https://stackoverflow.com/questions/20558648/what-is-the-datakinds-extension-of-haskell
---            https://stackoverflow.com/questions/43156781/haskell-gadts-making-a-type-safe-tensor-types-for-riemannian-geometry
-data N = Z | S N deriving (Eq, Show)
 
 {- ORMOLU_DISABLE -}
 
@@ -27,32 +27,22 @@ type UTrShape s u = (s,u
 {- ORMOLU_ENABLE -}
 
 -- | Matrix n a
-data Matrix (n :: N) a where
-  SquareMatrix :: Matrix n a -> Matrix n a -> Matrix n a -> Matrix n a -> NonZeroMatrix n a
-  UpperRightTriangularMatrix :: Matrix n a -> Matrix n a -> Matrix n a -> NonZeroMatrix n a
-  UnitMatrix :: a -> ZeroMatrix a
+data Matrix (n :: Nat) a where
+  SquareMatrix :: Matrix n a -> Matrix n a -> Matrix n a -> Matrix n a -> Matrix (One + n) a
+  UpperRightTriangularMatrix :: Matrix n a -> Matrix n a -> Matrix n a -> Matrix (One + n) a
+  UnitMatrix :: a -> Matrix 'Zero a
   Empty :: Matrix n a
-
-type ZeroMatrix = Matrix 'Z
-
-type NonZeroMatrix (n :: N) = Matrix ('S n)
 
 class IsZeroType n where
   isZeroType :: Matrix n a -> Bool
 
-instance IsZeroType 'Z where
+instance IsZeroType 'Zero where
   isZeroType _ = True
 
-instance IsZeroType n => IsZeroType ('S n) where
+instance IsZeroType n => IsZeroType ('Succ n) where
   isZeroType _ = False
 
 -- Test stuff
-
-type One = 'S 'Z
-
-type Two = 'S One
-
-type Three = 'S Two
 
 {- ORMOLU_DISABLE -}
 sq1, ut1 :: Num a => a -> Matrix One a
@@ -90,33 +80,33 @@ instance Functor (Matrix n) where
   fmap f (UnitMatrix a) = UnitMatrix (f a)
   fmap _ Empty = Empty
 
-instance Ring a => Ring (ZeroMatrix a) where
+instance Ring a => Ring (Matrix 'Zero a) where
   zero = Empty
   add = addZM
   mul = mulZM
 
-addZM :: Ring a => ZeroMatrix a -> ZeroMatrix a -> ZeroMatrix a
+addZM :: Ring a => Matrix 'Zero a -> Matrix 'Zero a -> Matrix 'Zero a
 addZM Empty y = y
 addZM x Empty = x
 addZM (UnitMatrix a) (UnitMatrix b) = UnitMatrix (add a b)
 
-mulZM :: Ring a => ZeroMatrix a -> ZeroMatrix a -> ZeroMatrix a
+mulZM :: Ring a => Matrix 'Zero a -> Matrix 'Zero a -> Matrix 'Zero a
 mulZM Empty _y = Empty
 mulZM _x Empty = Empty
 mulZM (UnitMatrix a) (UnitMatrix b) = UnitMatrix (mul a b)
 
-instance (Ring a, Ring (Matrix n a), Applicative (Matrix n), Applicative (NonZeroMatrix n)) => Ring (NonZeroMatrix n a) where
+instance (Ring a, Ring (Matrix n a), Applicative (Matrix n), Applicative (Matrix ('Succ n))) => Ring (Matrix ('Succ n) a) where
   zero = Empty
   add = addSM
   mul = mulSM
 
-addSM :: (Ring a, Applicative (NonZeroMatrix n)) => NonZeroMatrix n a -> NonZeroMatrix n a -> NonZeroMatrix n a
+addSM :: (Ring a, Applicative (Matrix (One + n))) => Matrix (One + n) a -> Matrix (One + n) a -> Matrix (One + n) a
 addSM Empty y = y
 addSM x Empty = x
 addSM x y = add <$> x <*> y
 
 -- see Bernardy and Claessen, “Efficient Divide-and-Conquer Parsing of Practical Context-Free Languages.”
-mulSM :: (Ring (Matrix n a), Applicative (Matrix n)) => NonZeroMatrix n a -> NonZeroMatrix n a -> NonZeroMatrix n a
+mulSM :: (Ring (Matrix n a), Applicative (Matrix n)) => Matrix ('Succ n) a -> Matrix ('Succ n) a -> Matrix ('Succ n) a
 mulSM Empty _y = Empty
 mulSM _x Empty = Empty
 {- ORMOLU_DISABLE -}
@@ -133,13 +123,13 @@ mulSM (SquareMatrix a11 a12
 {- ORMOLU_ENABLE -}
 mulSM _ _ = error "Illegal type combination for mulSM"
 
-instance Applicative ZeroMatrix where
+instance Applicative (Matrix 'Zero) where
   pure = UnitMatrix
   (UnitMatrix a) <*> (UnitMatrix b) = UnitMatrix $ a b
   Empty <*> _ = Empty
   _ <*> Empty = Empty
 
-instance Applicative (Matrix n) => Applicative (NonZeroMatrix n) where
+instance Applicative (Matrix n) => Applicative (Matrix ('Succ n)) where
   pure m = SquareMatrix (pure m) (pure m) (pure m) (pure m)
   (SquareMatrix a b c d) <*> (SquareMatrix e f g h) = SquareMatrix (a <*> e) (b <*> f) (c <*> g) (d <*> h)
   (UpperRightTriangularMatrix a b d) <*> (UpperRightTriangularMatrix e f h) = UpperRightTriangularMatrix (a <*> e) (b <*> f) (d <*> h)
@@ -160,12 +150,20 @@ instance (Applicative (Matrix n), Semigroup a) => Monoid (Matrix n a) where
 class (Show a) => BirdWalk a where
   walk :: Int -> a -> (Int, String)
 
-instance (Show m) => Show (ZeroMatrix m) where
+instance (Show m) => Show (Matrix 'Zero m) where
   show m = s
     where
       (topMax, s) = walk topMax m
 
-instance (Show m) => BirdWalk (ZeroMatrix m) where
+instance
+  (Show m, BirdWalk (Matrix n m), Size n) =>
+  Show (Matrix ('Succ n) m)
+  where
+  show mat = s
+    where
+      (topMax, s) = walk topMax mat
+
+instance (Show m) => BirdWalk (Matrix 'Zero m) where
   walk topMax Empty = (0, concat . replicate len $ replicate ((topMax + 1) * len) ' ' ++ "\n")
     where
       len = 1
@@ -181,7 +179,7 @@ instance (Show m) => BirdWalk (ZeroMatrix m) where
 
 instance
   (Show m, Size n, BirdWalk (Matrix n m)) =>
-  BirdWalk (NonZeroMatrix n m)
+  BirdWalk (Matrix ('Succ n) m)
   where
   walk topMax mat = case mat of
     (SquareMatrix a b c d) -> (foldr max 0 ns, concatQuads sa sb sc sd)
@@ -199,24 +197,16 @@ concatQuads a b c d = concatMap pairConcat [(a, b), (c, d)]
     rhf = map (++ "\n") . lines
     pairConcat (x, y) = concat $ zipWith (++) (lhf x) (rhf y)
 
-instance
-  (Show m, BirdWalk (Matrix n m), Size n) =>
-  Show (NonZeroMatrix n m)
-  where
-  show mat = s
-    where
-      (topMax, s) = walk topMax mat
-
 class Size n where
   size :: Matrix n a -> Int
 
-instance Size 'Z where
+instance Size 'Zero where
   size _ = 1
 
-instance (Size n) => Size ('S n) where
+instance (Size n) => Size ('Succ n) where
   size m = 2 * size (helper m)
     where
-      helper :: NonZeroMatrix n m -> Matrix n m
+      helper :: Matrix ('Succ n) m -> Matrix n m
       helper _ = Empty
 
 ---------------------------- Constructors --------------------------------------
@@ -256,7 +246,7 @@ u2s _ = undefined
 --     smsq = float2Int (int2Float nsq / 2.0)
 --     smallM = newSquareMatrix smsq
 
-newSquareMatrix_ :: Matrix n m -> NonZeroMatrix n m
+newSquareMatrix_ :: Matrix n m -> Matrix ('Succ n) m
 newSquareMatrix_ m = SquareMatrix m m m m
 
 ------------------------------- Algorithm --------------------------------------
@@ -264,10 +254,10 @@ newSquareMatrix_ m = SquareMatrix m m m m
 class ConstructMatrix n where
   constructMatrix :: String -> Matrix n String
 
-instance ConstructMatrix 'Z where
+instance ConstructMatrix 'Zero where
   constructMatrix s = UnitMatrix s
 
-instance (Size n, ConstructMatrix n) => ConstructMatrix ('S n) where
+instance (Size n, ConstructMatrix n) => ConstructMatrix ('Succ n) where
   constructMatrix s = UpperRightTriangularMatrix a x b
     where
       n = size b
@@ -276,19 +266,19 @@ instance (Size n, ConstructMatrix n) => ConstructMatrix ('S n) where
       x = Empty
       b = constructMatrix bs
 
-sq :: Matrix ('S ('S ('S 'Z))) String
+sq :: Matrix ('Succ ('Succ ('Succ 'Zero))) String
 sq = constructMatrix "abcdef"
 
 -- see Bernardy and Claessen, “Efficient Divide-and-Conquer Parsing of Practical Context-Free Languages.”
 class Valiant a where
   v :: a -> a -> a -> a
 
-instance Ring a => Valiant (ZeroMatrix a) where
+instance Ring a => Valiant (Matrix 'Zero a) where
   v Empty (UnitMatrix x) Empty = UnitMatrix x
   v _ x _ = x
 
-instance (Ring (Matrix n a), Valiant (Matrix n a)) => Valiant (NonZeroMatrix n a) where
-  v :: (Ring (Matrix n a), Valiant (Matrix n a)) => NonZeroMatrix n a -> NonZeroMatrix n a -> NonZeroMatrix n a -> NonZeroMatrix n a
+instance (Ring (Matrix n a), Valiant (Matrix n a)) => Valiant (Matrix ('Succ n) a) where
+  v :: (Ring (Matrix n a), Valiant (Matrix n a)) => Matrix ('Succ n) a -> Matrix ('Succ n) a -> Matrix ('Succ n) a -> Matrix ('Succ n) a
   v _ Empty _ = Empty
   v (UpperRightTriangularMatrix a11 a12 a22) (SquareMatrix x11 x12 x21 x22) (UpperRightTriangularMatrix b11 b12 b22) = SquareMatrix y11 y12 y21 y22
     where
