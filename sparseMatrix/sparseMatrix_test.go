@@ -11,6 +11,22 @@ type Pair struct {
 	y int
 }
 
+func (p *Pair) Add(r Ring[int]) Ring[int] {
+	if at, bt := reflect.TypeOf(p), reflect.TypeOf(r); at != bt {
+		return nil
+	}
+	p2 := r.(*Pair)
+	return &Pair{p.x + p2.x, p.y + p2.y}
+}
+
+func (p *Pair) Multiply(r Ring[int]) Ring[int] {
+	if at, bt := reflect.TypeOf(p), reflect.TypeOf(r); at != bt {
+		return nil
+	}
+	p2 := r.(*Pair)
+	return &Pair{p.x * p2.x, p.y * p2.y}
+}
+
 // TODO: invalid writes should not write (-1,-1 for instance)
 func populateCanary(m Matrix[string]) {
 	for i := 0; i < m.Width(); i++ {
@@ -24,6 +40,7 @@ func populateCanary(m Matrix[string]) {
 
 func makeNoOverwriteTest(size int) func(t *testing.T) {
 	return func(t *testing.T) {
+		t.Parallel()
 		sq := NewSquareMatrix[*Pair](size)
 		for i := 0; i < size; i++ {
 			for j := 0; j < size; j++ {
@@ -50,6 +67,7 @@ func makeNoOverwriteTest(size int) func(t *testing.T) {
 
 func makeEdgeTest(size int) func(t *testing.T) {
 	return func(t *testing.T) {
+		t.Parallel()
 		sq := NewSquareMatrix[Pair](size)
 		// populateCanary(sq)
 		testCases := []Pair{
@@ -73,6 +91,7 @@ func makeEdgeTest(size int) func(t *testing.T) {
 
 func makeOOBTest(size int) func(t *testing.T) {
 	return func(t *testing.T) {
+		t.Parallel()
 		sq := NewSquareMatrix[string](size)
 		for _, tc := range []struct {
 			x int
@@ -91,7 +110,9 @@ func makeOOBTest(size int) func(t *testing.T) {
 
 func TestSquareMatrix(t *testing.T) {
 	for size := 2; size < 20; size++ {
+		size := size
 		t.Run(fmt.Sprintf("iter-size-%04d", size), func(t *testing.T) {
+			t.Parallel()
 			t.Run("no-overwrite", makeNoOverwriteTest(size))
 
 			t.Run("edges", makeEdgeTest(size))
@@ -102,8 +123,10 @@ func TestSquareMatrix(t *testing.T) {
 			}
 		})
 	}
-	for size := 990; size < 1020; size++ {
+	for size := 1020; size < 1040; size++ {
+		size := size
 		t.Run(fmt.Sprintf("iter-size-%04d", size), func(t *testing.T) {
+			t.Parallel()
 			t.Run("no-overwrite", makeNoOverwriteTest(size))
 
 			t.Run("edges", makeEdgeTest(size))
@@ -117,5 +140,5 @@ func TestSquareMatrix(t *testing.T) {
 }
 
 func TestAddMatrix(t *testing.T) {
-	NewSquareMatrix[]()
+	// NewSquareMatrix[]()
 }

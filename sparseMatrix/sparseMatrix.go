@@ -14,11 +14,24 @@ type Matrix[T any] interface {
 	Height() int
 }
 
+type SquareMatrix[T any] struct {
+	Ring[T]
+	Matrix[T]
+
+	UL Matrix[T]
+	UR Matrix[T]
+	BL Matrix[T]
+	BR Matrix[T]
+
+	w int
+}
+
 // TODO: addition: set union
 //       multiplication: set(a) -> set(b) -> set(C(a,b))
 
 // function V to compute for one level up
 // solve what to do for singleton matrix
+//   The singleton matrix effectively "lifts" its value
 
 // partition = N/2 where N is the width in cells of this section of the matrix
 
@@ -91,41 +104,31 @@ func (a *RingSet[T]) Multiply(r Ring[T]) Ring[T] {
 	return c
 }
 
-type SquareMatrix[T Matrix[K], K any] struct {
-	Ring[T]
-
-	UL T
-	UR T
-	BL T
-	BR T
-
-	w int // TODO: rebrand to `size` or actually track width+height, not this shit wtf
-}
-
-func (m *SquareMatrix[T, K]) Add(b Ring[T]) Ring[T] {
+func (m *SquareMatrix[T]) Add(b Ring[T]) Ring[T] {
 	return nil
 }
 
-func (m *SquareMatrix[T, K]) Multiply(b Ring[T]) Ring[T] {
+func (m *SquareMatrix[T]) Multiply(b Ring[T]) Ring[T] {
 	return nil
 }
 
-func NewSquareMatrix[T Matrix[K], K any](n int) *SquareMatrix[T, K] {
+func NewSquareMatrix[T any](n int) *SquareMatrix[T] {
+	// func NewSquareMatrix[T any](n int) *SquareMatrix[T] {
 	i := 1 << 0 // TODO: remove hack
 	for i < n {
 		i = i << 1
 	}
-	return &SquareMatrix[T, K]{w: i}
+	return &SquareMatrix[T]{w: i}
 }
 
-func (m *SquareMatrix[T, K]) Width() int {
+func (m *SquareMatrix[T]) Width() int {
 	if m == nil {
 		return 0
 	}
 	return m.w
 }
 
-func (m *SquareMatrix[T, K]) Height() int {
+func (m *SquareMatrix[T]) Height() int {
 	if m == nil {
 		return 0
 	}
@@ -139,7 +142,7 @@ func convertSquareMatrix[T any](a Ring[T]) Matrix[T] {
 	return a.(Matrix[T])
 }
 
-func (m *SquareMatrix[T, K]) quarter(i, j int) Matrix[T] {
+func (m *SquareMatrix[T]) quarter(i, j int) Matrix[T] {
 	subI := m.w / 2
 	subJ := m.w / 2
 	var left bool
@@ -161,7 +164,7 @@ func (m *SquareMatrix[T, K]) quarter(i, j int) Matrix[T] {
 	}
 }
 
-func (m *SquareMatrix[T, K]) setQuarter(i, j int, mx Matrix[T]) Matrix[T] {
+func (m *SquareMatrix[T]) setQuarter(i, j int, mx Matrix[T]) Matrix[T] {
 	subI := m.w / 2
 	subJ := m.w / 2
 	var left bool
@@ -187,7 +190,7 @@ func (m *SquareMatrix[T, K]) setQuarter(i, j int, mx Matrix[T]) Matrix[T] {
 	}
 }
 
-func partitionIndex[T any](n int, m *SquareMatrix[T, K]) int {
+func partitionIndex[T any](n int, m *SquareMatrix[T]) int {
 	half := m.w / 2
 	if n < half {
 		return n
@@ -216,11 +219,11 @@ func partitionIndex[T any](n int, m *SquareMatrix[T, K]) int {
 // X X
 // UR X,Y = 0,0
 
-func (m *SquareMatrix[T, K]) inBounds(i, j int) bool {
+func (m *SquareMatrix[T]) inBounds(i, j int) bool {
 	return i >= 0 && j >= 0 && i < m.w && j < m.w
 }
 
-func (m *SquareMatrix[T, K]) Index(i, j int) T {
+func (m *SquareMatrix[T]) Index(i, j int) T {
 	if m == nil {
 		return *new(T)
 	}
@@ -231,7 +234,7 @@ func (m *SquareMatrix[T, K]) Index(i, j int) T {
 	return q.Index(partitionIndex(i, m), partitionIndex(j, m))
 }
 
-func (m *SquareMatrix[T, K]) Insert(i, j int, v T) Matrix[T] {
+func (m *SquareMatrix[T]) Insert(i, j int, v T) Matrix[T] {
 	if !m.inBounds(i, j) {
 		return nil
 	}
@@ -242,7 +245,7 @@ func (m *SquareMatrix[T, K]) Insert(i, j int, v T) Matrix[T] {
 		if m.w == 2 {
 			mx = &UnitMatrix[T]{}
 		} else {
-			mx = &SquareMatrix[T, K]{w: m.w / 2}
+			mx = &SquareMatrix[T]{w: m.w / 2}
 		}
 		mx = mx.Insert(partitionIndex(i, m), partitionIndex(j, m), v)
 		m.setQuarter(i, j, mx)
@@ -281,7 +284,7 @@ func (m *UnitMatrix[T]) Insert(i, j int, v T) Matrix[T] {
 }
 
 type UpperRightTriangularMatrix[T any] struct {
-	UR *SquareMatrix[T, K]
+	UR *SquareMatrix[T]
 	UL *UpperRightTriangularMatrix[T]
 	BR *UpperRightTriangularMatrix[T]
 
