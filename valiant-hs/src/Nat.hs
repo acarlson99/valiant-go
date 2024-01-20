@@ -42,12 +42,21 @@ type family ExpTwo (n :: Nat) :: Nat where
   ExpTwo 'Zero = 'Succ 'Zero
   ExpTwo ('Succ n) = Mul Two (ExpTwo n)
 
+-- type family Sqrt (n :: Nat) :: Nat where
+--   ExpTwo ('Succ 'Zero) = 'Zero
+--   ExpTwo ('Succ n) = Mul Two (ExpTwo n) -- TODO: un-this
+
 type family Mul (m :: Nat) (n :: Nat) :: Nat where
   Mul m 'Zero = 'Zero
   Mul m ('Succ n) = Add m (Mul m n)
 
 type family Add (m :: Nat) (n :: Nat) :: Nat where
   Add m n = m + n
+
+type family Half (n :: Nat) :: Nat where
+  Half 'Zero = 'Zero
+  Half ('Succ 'Zero) = 'Succ 'Zero
+  Half ('Succ ('Succ n)) = 'Succ (Half n)
 
 data Fin :: Nat -> * where
   FZ :: Fin ('Succ n)

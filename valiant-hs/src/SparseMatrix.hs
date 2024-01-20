@@ -191,11 +191,12 @@ instance
     Empty -> (0, concat . replicate (size mat) $ replicate ((topMax + 1) * size mat) ' ' ++ "\n")
 
 concatQuads :: String -> String -> String -> String -> String
-concatQuads a b c d = concatMap pairConcat [(a, b), (c, d)]
+concatQuads a b c d = dropLast $ concatMap pairConcat [(a, b), (c, d)]
   where
     lhf = lines
     rhf = map (++ "\n") . lines
     pairConcat (x, y) = concat $ zipWith (++) (lhf x) (rhf y)
+    dropLast = reverse . drop 1 . reverse
 
 class Size n where
   size :: Matrix n a -> Int
@@ -252,10 +253,11 @@ newSquareMatrix_ m = SquareMatrix m m m m
 ------------------------------- Algorithm --------------------------------------
 
 class ConstructMatrix n where
-  constructMatrix :: String -> Matrix n String
+  constructMatrix :: [a] -> Matrix n a
 
 instance ConstructMatrix 'Zero where
-  constructMatrix s = UnitMatrix s
+  constructMatrix (s : _) = UnitMatrix s
+  constructMatrix [] = Empty
 
 instance (Size n, ConstructMatrix n) => ConstructMatrix ('Succ n) where
   constructMatrix s = UpperRightTriangularMatrix a x b
@@ -270,14 +272,14 @@ instance (Size n, ConstructMatrix n) => ConstructMatrix ('Succ n) where
 --       I think I need to lift `strlen` to the type level and somehow
 --       at compile time infer
 --       `n = (/2) Len s => typeOf (constructMatrix s) == (n*'S `Cons` 'Z)`
-sqa :: Matrix ('Succ 'Zero) String
-sqb :: Matrix ('Succ ('Succ ('Succ 'Zero))) String
-sqc :: Matrix ('Succ ('Succ ('Succ ('Succ 'Zero)))) String
+sqa :: Matrix ('Succ 'Zero) Char
+sqb :: Matrix ('Succ ('Succ ('Succ 'Zero))) Char
+sqc :: Matrix ('Succ ('Succ ('Succ ('Succ 'Zero)))) Char
 (sqa, sqb, sqc) = (sqa_, sqb_, sqc_)
   where
-    sqa_ = constructMatrix "abcdef"
-    sqb_ = constructMatrix "abcdef"
-    sqc_ = constructMatrix "abcdef"
+    sqa_ = constructMatrix "abcdefgh"
+    sqb_ = constructMatrix "abcdefgh"
+    sqc_ = constructMatrix "abcdefgh"
 
 -- see Bernardy and Claessen, “Efficient Divide-and-Conquer Parsing of Practical Context-Free Languages.”
 class Valiant a where
