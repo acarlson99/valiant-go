@@ -80,3 +80,6 @@ type One = 'Succ 'Zero
 type Two = One + One
 
 type Three = One + Two
+
+class NatTypeToVal a where
+  natTypeToVal :: a -> Nat

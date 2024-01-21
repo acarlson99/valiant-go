@@ -42,6 +42,12 @@ instance IsZeroType 'Zero where
 instance IsZeroType n => IsZeroType ('Succ n) where
   isZeroType _ = False
 
+instance NatTypeToVal (Matrix 'Zero a) where
+  natTypeToVal = const Zero
+
+instance NatTypeToVal (Matrix n a) => NatTypeToVal (Matrix ('Succ n) a) where
+  natTypeToVal = Succ . natTypeToVal . gradeDown
+
 -- Test stuff
 
 {- ORMOLU_DISABLE -}
@@ -204,11 +210,11 @@ class Size n where
 instance Size 'Zero where
   size _ = 1
 
+gradeDown :: Matrix ('Succ n) a -> Matrix n a
+gradeDown = const Empty
+
 instance (Size n) => Size ('Succ n) where
-  size m = 2 * size (helper m)
-    where
-      helper :: Matrix ('Succ n) m -> Matrix n m
-      helper _ = Empty
+  size m = 2 * size (gradeDown m)
 
 ---------------------------- Constructors --------------------------------------
 
