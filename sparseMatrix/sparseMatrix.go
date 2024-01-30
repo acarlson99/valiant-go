@@ -6,8 +6,8 @@ import (
 	"strings"
 )
 
-type Matrix[T any] interface {
-	Ring[T]
+type Matrix[T Ring] interface {
+	Ring
 
 	Index(i, j int) T
 	Insert(i, j int, v T) Matrix[T]
@@ -17,7 +17,7 @@ type Matrix[T any] interface {
 	String() string
 }
 
-type SquareMatrix[T any] struct {
+type SquareMatrix[T Ring] struct {
 	UL Matrix[T]
 	UR Matrix[T]
 	BL Matrix[T]
@@ -35,31 +35,30 @@ type SquareMatrix[T any] struct {
 
 // partition = N/2 where N is the width in cells of this section of the matrix
 
-type Ring[T any] interface {
-	Add(b Ring[T]) Ring[T]
-	Multiply(b Ring[T]) Ring[T]
-	// Compare(b Ring[T]) bool
+type Ring interface {
+	Add(b Ring) Ring
+	Multiply(b Ring) Ring
+	// Compare(b Ring) bool
 }
 
 func f() {
-	var r Ring[int]
+	var r Ring
 	r = new(RingSet[int])
 	fmt.Println(r)
 }
 
 type RingInt struct {
-	Ring[int]
 	v int
 }
 
-func (a *RingInt) Add(r Ring[int]) Ring[int] {
+func (a *RingInt) Add(r Ring) Ring {
 	if at, bt := reflect.TypeOf(a), reflect.TypeOf(r); at != bt {
 		return nil
 	}
 	return &RingInt{v: a.v + r.(*RingInt).v}
 }
 
-func (a *RingInt) Multiply(r Ring[int]) Ring[int] {
+func (a *RingInt) Multiply(r Ring) Ring {
 	if at, bt := reflect.TypeOf(a), reflect.TypeOf(r); at != bt {
 		return nil
 	}
@@ -71,11 +70,11 @@ func (a *RingInt) Compare(r *RingInt) bool {
 }
 
 type RingSet[T comparable] struct {
-	Ring[T]
+	Ring
 	s map[T]bool
 }
 
-func (a *RingSet[T]) Add(r Ring[T]) Ring[T] {
+func (a *RingSet[T]) Add(r Ring) Ring {
 	if at, bt := reflect.TypeOf(a), reflect.TypeOf(r); at != bt {
 		return nil
 	}
@@ -89,7 +88,7 @@ func (a *RingSet[T]) Add(r Ring[T]) Ring[T] {
 	return c
 }
 
-func (a *RingSet[T]) Multiply(r Ring[T]) Ring[T] {
+func (a *RingSet[T]) Multiply(r Ring) Ring {
 	if at, bt := reflect.TypeOf(a), reflect.TypeOf(r); at != bt {
 		return nil
 	}
@@ -104,11 +103,24 @@ func (a *RingSet[T]) Multiply(r Ring[T]) Ring[T] {
 	return c
 }
 
-func (m *SquareMatrix[T]) Add(b Ring[T]) Ring[T] {
+func (m *SquareMatrix[T]) Add(b Ring) Ring {
 	return nil
 }
 
-func (m *SquareMatrix[T]) Multiply(b Ring[T]) Ring[T] {
+func (a *SquareMatrix[T]) Multiply(b Ring) Ring {
+	switch b.(type) {
+	case *EmptyMatrix[T]:
+		return b
+	case *SquareMatrix[T]:
+		b := b.(*SquareMatrix[T])
+		return &SquareMatrix[T]{
+			w:  a.w,
+			UL: a.UL.Multiply(b.UL).Add(a.UR.Multiply(b.BL)).(Matrix[T]),
+			UR: a.UL.Multiply(b.UR).Add(a.UR.Multiply(b.BR)).(Matrix[T]),
+			BL: a.BL.Multiply(b.UL).Add(a.BR.Multiply(b.BL)).(Matrix[T]),
+			BR: a.BL.Multiply(b.UR).Add(a.BR.Multiply(b.BR)).(Matrix[T]),
+		}
+	}
 	return nil
 }
 
@@ -155,7 +167,7 @@ func (m *SquareMatrix[T]) String() string {
 	return strings.Join([]string{strings.Join(a, "\n"), strings.Join(c, "\n")}, "\n")
 }
 
-func NewSquareMatrix[T any](n int) *SquareMatrix[T] {
+func NewSquareMatrix[T Ring](n int) *SquareMatrix[T] {
 	i := nextSquare(n)
 	return &SquareMatrix[T]{UL: &EmptyMatrix[T]{w: i >> 1}, UR: &EmptyMatrix[T]{w: i >> 1}, BL: &EmptyMatrix[T]{w: i >> 1}, BR: &EmptyMatrix[T]{w: i >> 1}, w: i}
 	// return &SquareMatrix[T]{w: i}
@@ -175,7 +187,7 @@ func (m *SquareMatrix[T]) Height() int {
 	return m.w
 }
 
-func convertSquareMatrix[T any](a Ring[T]) Matrix[T] {
+func convertSquareMatrix[T Ring](a Ring) Matrix[T] {
 	if a == nil {
 		return nil
 	}
@@ -230,7 +242,7 @@ func (m *SquareMatrix[T]) setQuarter(i, j int, mx Matrix[T]) Matrix[T] {
 	}
 }
 
-func partitionIndex[T any](n int, m *SquareMatrix[T]) int {
+func partitionIndex[T Ring](n int, m *SquareMatrix[T]) int {
 	half := m.w / 2
 	if n < half {
 		return n
@@ -274,7 +286,7 @@ func (m *SquareMatrix[T]) Index(i, j int) T {
 	return q.Index(partitionIndex(i, m), partitionIndex(j, m))
 }
 
-func IsEmpty[T any](m Matrix[T]) bool {
+func IsEmpty[T Ring](m Matrix[T]) bool {
 	switch m.(type) {
 	case *EmptyMatrix[T]:
 		return true
@@ -299,15 +311,23 @@ func (m *SquareMatrix[T]) Insert(i, j int, v T) Matrix[T] {
 	return m
 }
 
-type UnitMatrix[T any] struct {
+type UnitMatrix[T Ring] struct {
 	v T
 }
 
-func (m *UnitMatrix[T]) Add(b Ring[T]) Ring[T] {
+func (m *UnitMatrix[T]) Add(b Ring) Ring {
+	switch b.(type) {
+	case *UnitMatrix[T]:
+		return &UnitMatrix[T]{v: m.v.Add(b.(*UnitMatrix[T]).v).(T)}
+	}
 	return m
 }
 
-func (m *UnitMatrix[T]) Multiply(b Ring[T]) Ring[T] {
+func (m *UnitMatrix[T]) Multiply(b Ring) Ring {
+	switch b.(type) {
+	case *UnitMatrix[T]:
+		return &UnitMatrix[T]{v: m.v.Multiply(b.(*UnitMatrix[T]).v).(T)}
+	}
 	return m
 }
 
@@ -358,7 +378,7 @@ func (m *UnitMatrix[T]) String() string {
 	return s
 }
 
-type EmptyMatrix[T any] struct {
+type EmptyMatrix[T Ring] struct {
 	w int
 }
 
@@ -366,8 +386,8 @@ func (m *EmptyMatrix[T]) Width() int                     { return m.w }
 func (m *EmptyMatrix[T]) Height() int                    { return m.w }
 func (m *EmptyMatrix[T]) Index(i, j int) T               { return *new(T) }
 func (m *EmptyMatrix[T]) Insert(i, j int, v T) Matrix[T] { return m }
-func (m *EmptyMatrix[T]) Add(a Ring[T]) Ring[T]          { return m }
-func (m *EmptyMatrix[T]) Multiply(a Ring[T]) Ring[T]     { return m }
+func (m *EmptyMatrix[T]) Add(a Ring) Ring                { return m }
+func (m *EmptyMatrix[T]) Multiply(a Ring) Ring           { return m }
 
 var maxLen = 1
 
@@ -380,11 +400,11 @@ func (m *EmptyMatrix[T]) String() string {
 	return strings.Join(ss, "\n")
 }
 
-type UpperRightTriangularMatrix[T any] struct {
+type UpperRightTriangularMatrix[T Ring] struct {
 	sq *SquareMatrix[T]
 }
 
-func NewUpperRightTriangularMatrix[T any](size int) *UpperRightTriangularMatrix[T] {
+func NewUpperRightTriangularMatrix[T Ring](size int) *UpperRightTriangularMatrix[T] {
 	return &UpperRightTriangularMatrix[T]{sq: NewSquareMatrix[T](size)}
 }
 
@@ -408,17 +428,17 @@ func (t *UpperRightTriangularMatrix[T]) Height() int {
 	return t.sq.Height()
 }
 
-func (t *UpperRightTriangularMatrix[T]) Add(b Ring[T]) Ring[T] {
+func (t *UpperRightTriangularMatrix[T]) Add(b Ring) Ring {
 	t.sq.BL = nil
 	return t.sq.Add(b)
 }
 
-func (t *UpperRightTriangularMatrix[T]) Multiply(b Ring[T]) Ring[T] {
+func (t *UpperRightTriangularMatrix[T]) Multiply(b Ring) Ring {
 	t.sq.BL = nil
 	return t.sq.Multiply(b)
 }
 
-// func V[T any](a *UpperRightTriangularMatrix[T], x *SquareMatrix[T], b *UpperRightTriangularMatrix[T]) *SquareMatrix[T] {
+// func V[T Ring](a *UpperRightTriangularMatrix[T], x *SquareMatrix[T], b *UpperRightTriangularMatrix[T]) *SquareMatrix[T] {
 // 	a11, a12, a22 := a.sq.UL.(*UpperRightTriangularMatrix[T]), a.sq.UR.(*SquareMatrix[T]), a.sq.BR.(*UpperRightTriangularMatrix[T])
 // 	x11, x12, x21, x22 := x.UL.(*SquareMatrix[T]), x.UR.(*SquareMatrix[T]), x.BL.(*SquareMatrix[T]), x.BR.(*SquareMatrix[T])
 // 	b11, b12, b22 := b.sq.UL.(*UpperRightTriangularMatrix[T]), b.sq.UR.(*SquareMatrix[T]), b.sq.BR.(*UpperRightTriangularMatrix[T])
@@ -429,17 +449,17 @@ func (t *UpperRightTriangularMatrix[T]) Multiply(b Ring[T]) Ring[T] {
 // 	return &SquareMatrix[T]{UL: y11, UR: y12, BL: y21, BR: y22}
 // }
 
-func ConstructMatrix(s string) Matrix[rune] {
-	l := len(s)
-	var mat Matrix[rune]
-	size := nextSquare(l)
-	if size == 1 {
-		mat = &UnitMatrix[rune]{}
-	} else {
-		mat = NewSquareMatrix[rune](size)
-	}
-	for i, c := range s {
-		mat.Insert(i, i, c)
-	}
-	return mat
-}
+// func ConstructMatrix(s string) Matrix[rune] {
+// l := len(s)
+// var mat Matrix[rune]
+// size := nextSquare(l)
+// if size == 1 {
+// 	mat = &UnitMatrix[rune]{}
+// } else {
+// 	mat = NewSquareMatrix[rune](size)
+// }
+// for i, c := range s {
+// 	mat.Insert(i, i, c)
+// }
+// 	return mat
+// }
