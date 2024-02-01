@@ -26,7 +26,15 @@ type UTrShape s u = (s,u
 
 {- ORMOLU_ENABLE -}
 
--- | Matrix n a
+type family SqDepth a :: Nat where
+  SqDepth ((a, b), (c, d)) = Succ (SqDepth a)
+  SqDepth _ = Zero
+
+type family BaseType a where
+  BaseType (a, a, a) = BaseType a
+  BaseType (a, a) = BaseType a
+  BaseType a = a
+
 data Matrix (n :: Nat) a where
   SquareMatrix :: Matrix n a -> Matrix n a -> Matrix n a -> Matrix n a -> Matrix (One + n) a
   UpperRightTriangularMatrix :: Matrix n a -> Matrix n a -> Matrix n a -> Matrix (One + n) a
@@ -255,6 +263,22 @@ u2s _ = undefined
 
 newSquareMatrix_ :: Matrix n m -> Matrix ('Succ n) m
 newSquareMatrix_ m = SquareMatrix m m m m
+
+class ConstructMatrixFromShape a where
+  constructMatrixFromShape :: a -> Matrix (SqDepth a) (BaseType a)
+
+instance {-# OVERLAPPABLE #-} (SqDepth a ~ 'Zero, BaseType a ~ a) => ConstructMatrixFromShape a where
+  constructMatrixFromShape a = UnitMatrix a
+
+instance {-# OVERLAPPING #-} ConstructMatrixFromShape a => ConstructMatrixFromShape (SqShape a) where
+  constructMatrixFromShape ((a, b), (c, d)) = SquareMatrix (constructMatrixFromShape a) (constructMatrixFromShape b) (constructMatrixFromShape c) (constructMatrixFromShape d)
+
+mfs = constructMatrixFromShape (sq sqa sqb sqa sqb)
+  where
+    sq :: a -> a -> a -> a -> SqShape a
+    sq a b c d = ((a, b), (c, d))
+    sqa = sq (1 :: Int) 2 3 4
+    sqb = sq 5 6 7 8
 
 ------------------------------- Algorithm --------------------------------------
 
