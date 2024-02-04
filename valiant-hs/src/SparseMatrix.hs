@@ -282,6 +282,25 @@ mfs = constructMatrixFromShape (sq sqa sqb sqa sqb)
 
 ------------------------------- Algorithm --------------------------------------
 
+-- class ConstructSqShape a b where
+--   constructSqShape :: a -> b
+
+-- instance ConstructSqShape String (SqShape a) where
+--   constructSqShape s =
+--     if length a > 1
+--       then ((constructSqShape a, constructSqShape b), (constructSqShape c, constructSqShape d))
+--       else ((a, b), (c, d))
+--     where
+--       (a, b, c, d) = splitSqStr s
+
+splitSqStr s = (a, b, c, d)
+  where
+    l = nextClosestSquare $ length s
+    n = l `div` 2 `div` 2
+    f (a, b) = splitAt n b
+    m = iterate f
+    [a, b, c, d] = take 4 . map fst . drop 1 $ m (mempty, s)
+
 class ConstructMatrix n where
   constructMatrix :: [a] -> Matrix n a
 
