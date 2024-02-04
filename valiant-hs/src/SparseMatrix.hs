@@ -10,10 +10,17 @@
 {-# LANGUAGE TypeOperators #-}
 {-# LANGUAGE UndecidableInstances #-}
 
-module SparseMatrix where
+module SparseMatrix
+  ( module SparseMatrix,
+    module Nat,
+    module Ring,
+    module Vec,
+  )
+where
 
 import Nat
 import Ring
+import Vec
 
 -------------------------------- Data ------------------------------------------
 
@@ -27,8 +34,8 @@ type UTrShape s u = (s,u
 {- ORMOLU_ENABLE -}
 
 type family SqDepth a :: Nat where
-  SqDepth ((a, b), (c, d)) = Succ (SqDepth a)
-  SqDepth _ = Zero
+  SqDepth ((a, b), (c, d)) = 'Succ (SqDepth a)
+  SqDepth _ = 'Zero
 
 type family BaseType a where
   BaseType (a, a, a) = BaseType a
@@ -297,7 +304,7 @@ splitSqStr s = (a, b, c, d)
   where
     l = nextClosestSquare $ length s
     n = l `div` 2 `div` 2
-    f (a, b) = splitAt n b
+    f (_, b) = splitAt n b
     m = iterate f
     [a, b, c, d] = take 4 . map fst . drop 1 $ m (mempty, s)
 
