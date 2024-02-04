@@ -3,7 +3,6 @@
 {-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE GADTs #-}
 {-# LANGUAGE InstanceSigs #-}
-{-# LANGUAGE KindSignatures #-}
 {-# LANGUAGE MultiParamTypeClasses #-}
 {-# LANGUAGE PolyKinds #-}
 {-# LANGUAGE RankNTypes #-}
@@ -15,7 +14,6 @@ module TestTypes where
 import Data.Type.Equality
 import Nat
 import SparseMatrix
-import Vec
 
 data Natty :: Nat -> * where
   Zy :: Natty 'Zero
@@ -39,6 +37,25 @@ instance (Show a) => Show (LenList a) where
 lenList :: [a] -> LenList a
 lenList [] = LenList VNil
 lenList (x : xs) = case lenList xs of LenList ys -> LenList (VCons x ys)
+
+data LengthlessMat a where
+  LengthlessMat :: Applicative (Matrix n) => Matrix (n :: Nat) a -> LengthlessMat a
+
+instance Functor LengthlessMat where
+  fmap f (LengthlessMat m) = LengthlessMat $ fmap f m
+
+-- instance Applicative LengthlessMat where
+--   pure a = LengthlessMat $ pure a
+--   (<*>) lf la =
+--     case lf of
+--       LengthlessMat f -> case la of
+--         LengthlessMat a -> __f f a
+--           where
+--             __f :: a -> b -> (a :~: b)
+--             __f _ _ = Refl
+
+-- instance Monad LengthlessMat where
+--   (>>=) _ _ = undefined
 
 -- TODO: skolem??
 -- lltl a = case a of LenList ys -> ys

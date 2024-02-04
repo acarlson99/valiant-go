@@ -37,4 +37,4 @@ instance NatTypeToVal (Vec 'Zero a) where
 
 instance NatTypeToVal (Vec n a) => NatTypeToVal (Vec ('Succ n) a) where
   natTypeToVal :: Vec ('Succ n) a -> Nat
-  natTypeToVal (VCons x xs) = Succ $ natTypeToVal xs
+  natTypeToVal (VCons _ xs) = Succ $ natTypeToVal xs
