@@ -13,19 +13,6 @@ module Nat where
 --            https://richarde.dev/papers/2018/stitch/stitch.pdf
 data Nat = Zero | Succ Nat deriving (Eq)
 
-data VNat :: Nat -> * where
-  Zv :: VNat 'Zero
-  Sv :: VNat n -> VNat ('Succ n)
-
-class Natural n where
-  natural :: VNat n
-
-instance Natural 'Zero where
-  natural = Zv
-
-instance Natural n => Natural ('Succ n) where
-  natural = Sv natural
-
 instance Show Nat where
   show nat = show $ f nat
     where
