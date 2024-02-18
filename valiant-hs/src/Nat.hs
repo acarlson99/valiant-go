@@ -24,6 +24,11 @@ type family a + b where
   'Zero + m = m
   ('Succ n) + m = 'Succ (n + m)
 
+type family (a :: Nat) - (b :: Nat) where
+  m - 'Zero = m
+  ('Succ n) - (Succ m) = (n - m)
+  'Zero - m = Zero
+
 type family Min a b where
   Min 'Zero m = 'Zero
   Min m 'Zero = 'Zero
@@ -42,6 +47,10 @@ type family ExpTwo (n :: Nat) :: Nat where
   ExpTwo 'Zero = 'Succ 'Zero
   ExpTwo ('Succ n) = Mul Two (ExpTwo n)
 
+type family ExpFour (n :: Nat) :: Nat where
+  ExpFour 'Zero = 'Succ 'Zero
+  ExpFour ('Succ n) = Mul (Add Two Two) (ExpFour n)
+
 -- type family Sqrt (n :: Nat) :: Nat where
 --   ExpTwo ('Succ 'Zero) = 'Zero
 --   ExpTwo ('Succ n) = Mul Two (ExpTwo n) -- TODO: un-this
@@ -52,6 +61,9 @@ type family Mul (m :: Nat) (n :: Nat) :: Nat where
 
 type family Add (m :: Nat) (n :: Nat) :: Nat where
   Add m n = m + n
+
+type family Sub m n where
+  Sub m n = m - n
 
 type family Half (n :: Nat) :: Nat where
   Half 'Zero = 'Zero

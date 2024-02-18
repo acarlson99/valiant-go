@@ -4,6 +4,9 @@
 {-# LANGUAGE GADTs #-}
 {-# LANGUAGE InstanceSigs #-}
 {-# LANGUAGE KindSignatures #-}
+{-# LANGUAGE RankNTypes #-}
+{-# LANGUAGE ScopedTypeVariables #-}
+{-# LANGUAGE TypeOperators #-}
 
 module Vec where
 
@@ -38,3 +41,19 @@ instance NatTypeToVal (Vec 'Zero a) where
 instance NatTypeToVal (Vec n a) => NatTypeToVal (Vec ('Succ n) a) where
   natTypeToVal :: Vec ('Succ n) a -> Nat
   natTypeToVal (VCons _ xs) = Succ $ natTypeToVal xs
+
+data VecN a where
+  VecN :: SNat n -> Vec n a -> VecN a
+
+class VecSplitAt (n :: Nat) where
+  vecSplitAt :: SNat n -> a -> Vec (m :: Nat) a -> (Vec n a, Vec (m - n) a)
+
+instance VecSplitAt n where
+  vecSplitAt :: SNat n -> a -> Vec m a -> (Vec n a, Vec (m - n) a)
+  vecSplitAt SZero _ v = (VNil, v)
+  vecSplitAt (SSucc n) df (VCons v vs) = (VCons v a, rest)
+    where
+      (a, rest) = vecSplitAt n df vs
+  vecSplitAt (SSucc n) df VNil = (VCons df a, rest)
+    where
+      (a, rest) = vecSplitAt n df VNil
