@@ -33,6 +33,10 @@ type UTrShape s u = (s,u
 
 {- ORMOLU_ENABLE -}
 
+type family NDepthSq n a where
+  NDepthSq (Succ n) a = SqShape (NDepthSq n a)
+  NDepthSq Zero a = SqShape a
+
 type family SqDepth a :: Nat where
   SqDepth ((a, b), (c, d)) = 'Succ (SqDepth a)
   SqDepth _ = 'Zero
@@ -43,8 +47,8 @@ type family BaseType a where
   BaseType a = a
 
 data Matrix (n :: Nat) a where
-  SquareMatrix :: Matrix n a -> Matrix n a -> Matrix n a -> Matrix n a -> Matrix (One + n) a
-  UpperRightTriangularMatrix :: Matrix n a -> Matrix n a -> Matrix n a -> Matrix (One + n) a
+  SquareMatrix :: Matrix n a -> Matrix n a -> Matrix n a -> Matrix n a -> Matrix (n + One) a
+  UpperRightTriangularMatrix :: Matrix n a -> Matrix n a -> Matrix n a -> Matrix (n + One) a
   UnitMatrix :: a -> Matrix 'Zero a
   Empty :: Matrix n a
 
@@ -121,7 +125,7 @@ instance (Ring a, Ring (Matrix n a), Applicative (Matrix n), Applicative (Matrix
   add = addSM
   mul = mulSM
 
-addSM :: (Ring a, Applicative (Matrix (One + n))) => Matrix (One + n) a -> Matrix (One + n) a -> Matrix (One + n) a
+addSM :: (Ring a, Applicative (Matrix (n + One))) => Matrix (n + One) a -> Matrix (n + One) a -> Matrix (n + One) a
 addSM Empty y = y
 addSM x Empty = x
 addSM x y = add <$> x <*> y
@@ -139,8 +143,8 @@ mulSM (SquareMatrix a11 a12
                     c21 c22
   where
     (+) = add; (*) = mul
-    c11 = (a11*b11) + (a12*b21);   c12 = (a11*b12) + (a12*b22)
-    c21 = (a21*b11) + (a22*b21);   c22 = (a21*b12) + (a22*b22)
+    c11 = a11*b11 + a12*b21;   c12 = a11*b12 + a12*b22
+    c21 = a21*b11 + a22*b21;   c22 = a21*b12 + a22*b22
 {- ORMOLU_ENABLE -}
 mulSM _ _ = error "Illegal type combination for mulSM"
 

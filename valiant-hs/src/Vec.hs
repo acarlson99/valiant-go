@@ -45,6 +45,15 @@ instance NatTypeToVal (Vec n a) => NatTypeToVal (Vec ('Succ n) a) where
 data VecN a where
   VecN :: SNat n -> Vec n a -> VecN a
 
+listToVecN :: [a] -> VecN a
+listToVecN [] = VecN SZero VNil
+listToVecN (x : xs) = case listToVecN xs of VecN sn vs -> VecN (SSucc sn) (VCons x vs)
+
+instance Show n => Show (VecN n) where
+  show (VecN sn v) = show v ++ " l=" ++ show sn
+
+-- TODO: use VecN type
+-- TODO: use vecsplitat to construct 4x4 mat
 class VecSplitAt (n :: Nat) where
   vecSplitAt :: SNat n -> a -> Vec (m :: Nat) a -> (Vec n a, Vec (m - n) a)
 
