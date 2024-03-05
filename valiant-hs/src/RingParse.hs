@@ -72,11 +72,21 @@ applyUnaryOp = catMaybes . (<$> productionRules) . flip unaryApp
 
 unaryOps = applyUnaryOp <$> syms
 
--- [[a], [b], [c]]
--- [[ab], [bc]]
--- [[abc]]
+opRing :: Ord a => [RingParse a]
+opRing = map (RingParse . S.fromList) unaryOps
+
+__f = a `mul` b
+  where
+    (a : b : _) = opRing
+
+-- [[a   ], [b], [c ], [d]]
+-- [[ab  ], [ ], [cd]]
+-- [[    ], [ ]]
+-- [[abcd]]
 applyBinOp :: [[Symbol String]] -> [[Symbol String]]
 applyBinOp syms =
   zipWith (\a b -> catMaybes $ binApp <$> productionRules <*> a <*> b) syms $ tail syms
 
 -- TODO: check patterns (n-1) e.g. CYK algo
+
+-- TODO: put this in a matrix
