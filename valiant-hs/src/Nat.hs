@@ -16,10 +16,6 @@ import Data.Type.Equality
 --            https://richarde.dev/papers/2018/stitch/stitch.pdf
 data Nat = Zero | Succ Nat deriving (Eq)
 
--- (!+) :: SNat n -> SNat m -> SNat (n + m)
--- n !+ SZero = n
--- n !+ (SSucc m) = SSucc (n !+ m)
-
 proof :: Succ Zero + Succ Zero :~: Succ (Succ Zero + Zero)
 proof = Refl
 
