@@ -6,6 +6,8 @@ module RingParse where
 import Data.Maybe (catMaybes)
 import qualified Data.Set as S
 import Ring
+import SparseMatrix
+import Vec
 
 type Name = String
 
@@ -46,7 +48,7 @@ productionRules :: ProductionRules String
 productionRules =
   [ Binary "S" (Nonterminal "NP") (Nonterminal "VP"),
     Binary "VP" (Nonterminal "VP") (Nonterminal "PP"),
-    Binary "VP" (Nonterminal "P") (Nonterminal "NP"),
+    Binary "VP" (Nonterminal "V") (Nonterminal "NP"),
     Unary "VP" (Terminal "eats"),
     Binary "PP" (Nonterminal "P") (Nonterminal "NP"),
     Binary "NP" (Nonterminal "Det") (Nonterminal "N"),
@@ -72,7 +74,7 @@ applyUnaryOp = catMaybes . (<$> productionRules) . flip unaryApp
 
 unaryOps = applyUnaryOp <$> syms
 
-opRing :: Ord a => [RingParse a]
+opRing :: [RingParse String]
 opRing = map (RingParse . S.fromList) unaryOps
 
 __f = a `mul` b
@@ -90,3 +92,19 @@ applyBinOp syms =
 -- TODO: check patterns (n-1) e.g. CYK algo
 
 -- TODO: put this in a matrix
+
+__a =
+  UpperRightTriangularMatrix
+    ( UpperRightTriangularMatrix
+        (UpperRightTriangularMatrix (UnitMatrix a) Empty (UnitMatrix b))
+        Empty
+        (UpperRightTriangularMatrix (UnitMatrix c) Empty (UnitMatrix d))
+    )
+    Empty
+    ( UpperRightTriangularMatrix
+        (UpperRightTriangularMatrix (UnitMatrix e) Empty (UnitMatrix f))
+        Empty
+        (UpperRightTriangularMatrix (UnitMatrix g) Empty (UnitMatrix h))
+    )
+  where
+    [a, b, c, d, e, f, g, h] = opRing ++ [RingParse $ S.fromList []]
