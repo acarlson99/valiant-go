@@ -325,23 +325,6 @@ data MatrixN a where
 fff :: VecN a -> MatrixN b
 fff = undefined
 
-class SNatl n => VecAppend n where
-  vecAppend :: a -> Vec n a -> Vec (Succ n) a
-
-instance VecAppend Zero where
-  vecAppend a VNil = VCons a VNil
-
-instance VecAppend n => VecAppend (Succ n) where
-  vecAppend a (VCons b bs) = case vecAppend a bs of (VCons c cs) -> VCons b (VCons c cs)
-
-vecAppend2 :: a -> LenList a -> LenList a
-vecAppend2 a (LenList n v) = case n of
-  SZero -> LenList (SSucc n) $ VCons a VNil
-  SSucc _ ->
-    case v of
-      (VCons b bs) -> case vecAppend2 a (LenList snat bs) of
-        (LenList n2 xs) -> LenList (SSucc n2) $ VCons b xs
-
 -- -- TODO: quarter
 -- -- TODO: shuffle into SqShape
 -- vecHalve ::

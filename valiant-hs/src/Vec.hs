@@ -7,6 +7,8 @@
 {-# LANGUAGE KindSignatures #-}
 {-# LANGUAGE RankNTypes #-}
 {-# LANGUAGE ScopedTypeVariables #-}
+{-# LANGUAGE TypeApplications #-}
+{-# LANGUAGE TypeOperators #-}
 {-# LANGUAGE UndecidableInstances #-}
 
 module Vec where
@@ -49,6 +51,23 @@ instance Foldable (Vec n) where
   foldr f acc (VCons a bs) = f a $ foldr f acc bs
   foldr _ acc VNil = acc
 
+class SNatl n => VecAppend n where
+  vecAppend :: a -> Vec n a -> Vec (Succ n) a
+
+instance VecAppend Zero where
+  vecAppend a VNil = VCons a VNil
+
+instance VecAppend n => VecAppend (Succ n) where
+  vecAppend a (VCons b bs) = case vecAppend a bs of (VCons c cs) -> VCons b (VCons c cs)
+
+vecNAppend :: a -> VecN a -> VecN a
+vecNAppend a (VecN n v) = case n of
+  SZero -> VecN (SSucc n) $ VCons a VNil
+  SSucc _ ->
+    case v of
+      (VCons b bs) -> case vecNAppend a (VecN snat bs) of
+        (VecN n2 xs) -> VecN (SSucc n2) $ VCons b xs
+
 instance NatTypeToVal (Vec 'Zero a) where
   natTypeToVal = const Zero
 
@@ -58,6 +77,17 @@ instance NatTypeToVal (Vec n a) => NatTypeToVal (Vec ('Succ n) a) where
 
 data VecN a where
   VecN :: SNatl n => SNat n -> Vec n a -> VecN a
+
+-- TODO: this-- prove to the compiler that n+m is good
+vconcat :: Vec n a -> Vec m a -> Vec (m + n) a
+vconcat VNil ys = ys
+vconcat (VCons x xs) ys = undefined -- VCons x $ vecAppend xs ys
+
+instance Semigroup (VecN a) where
+  (<>) (VecN n x) (VecN m y) = undefined -- VecN snat $ x `vconcat` y
+
+instance Monoid (VecN a) where
+  mempty = VecN snat VNil
 
 -- instance Functor VecN where
 --   fmap f (VecN n v) = VecN n $ fmap f v
