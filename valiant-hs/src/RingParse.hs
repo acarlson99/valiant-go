@@ -91,8 +91,7 @@ applyBinOp syms =
 
 -- TODO: check patterns (n-1) e.g. CYK algo
 
--- TODO: put this in a matrix
-
+-- TODO: this is NOT how to construct a matrix
 __a =
   UpperRightTriangularMatrix
     ( UpperRightTriangularMatrix
