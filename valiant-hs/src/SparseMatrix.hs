@@ -175,7 +175,7 @@ instance (Applicative (Matrix n), Semigroup a) => Monoid (Matrix n a) where
 class (Show a) => BirdWalk a where
   walk :: Int -> a -> (Int, String)
 
-instance (Show m) => Show (Matrix 'Zero m) where
+instance (Show m, Monoid m) => Show (Matrix 'Zero m) where
   show m = s
     where
       (topMax, s) = walk topMax m
@@ -188,19 +188,17 @@ instance
     where
       (topMax, s) = walk topMax mat
 
-instance (Show m) => BirdWalk (Matrix 'Zero m) where
-  walk topMax Empty = (0, concat . replicate len $ replicate ((topMax + 1) * len) ' ' ++ "\n")
+instance (Show m, Monoid m) => BirdWalk (Matrix 'Zero m) where
+  walk topMax mat = (length s, fixLength topMax s)
     where
-      len = 1
-  walk topMax (UnitMatrix m) = (length s, fixLength topMax s)
-    where
-      s = show m
+      s = show $ case mat of
+        UnitMatrix m -> m
+        Empty -> mempty
       fixLength n x
-        | len == 0 = replicate n '+'
-        | otherwise = replicate md ' ' ++ x ++ replicate dv ' '
+        | len == 0 = replicate n ' '
+        | otherwise = replicate (n - len) ' ' ++ x
         where
           len = length x
-          (dv, md) = n `divMod` len
 
 instance
   (Show m, Size n, BirdWalk (Matrix n m)) =>
@@ -213,7 +211,7 @@ instance
     (UpperRightTriangularMatrix a b d) -> (foldr max 0 ns, concatQuads sa sb sc sd)
       where
         (ns, [sa, sb, sc, sd]) = unzip $ map (walk topMax) [a, b, Empty, d]
-    Empty -> (0, concat . replicate (size mat) $ replicate ((topMax + 1) * size mat) ' ' ++ "\n")
+    Empty -> walk topMax (SquareMatrix Empty Empty Empty Empty :: Matrix ('Succ n) m)
 
 concatQuads :: String -> String -> String -> String -> String
 concatQuads a b c d = dropLast $ concatMap pairConcat [(a, b), (c, d)]
