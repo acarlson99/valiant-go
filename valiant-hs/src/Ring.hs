@@ -51,6 +51,17 @@ instance Ring Int where
   add = (+)
   mul = (*)
 
+instance Ring Integer where
+  zero = 0
+  add = (+)
+  mul = (*)
+
+instance Semigroup Integer where
+  (<>) = (+)
+
+instance Monoid Integer where
+  mempty = 0
+
 instance (Ring a, Ord a) => Ring (Set a) where
   zero = mempty
   add = union

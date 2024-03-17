@@ -1,4 +1,6 @@
 {-# LANGUAGE GADTs #-}
+{-# LANGUAGE InstanceSigs #-}
+{-# LANGUAGE MultiParamTypeClasses #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 
 module RingParse where
@@ -41,8 +43,22 @@ unaryApp Binary {} _ = Nothing
 
 newtype RingParse a = RingParse {getSyms :: S.Set (Symbol a)}
 
+liftRPF ::
+  (Ord a3, Monoid a3) =>
+  (S.Set (Symbol a1) -> S.Set (Symbol a2) -> S.Set (Symbol a3)) ->
+  RingParse a1 ->
+  RingParse a2 ->
+  RingParse a3
+liftRPF f (RingParse as) (RingParse bs) = RingParse $ f as bs
+
+instance (Monoid a, Ord a) => Semigroup (RingParse a) where
+  (<>) = liftRPF S.union
+
+instance (Monoid a, Ord a) => Monoid (RingParse a) where
+  mempty = RingParse mempty
+
 instance Show a => Show (RingParse a) where
-  show (RingParse s) = show s
+  show (RingParse s) = show $ S.toList s
 
 productionRules :: ProductionRules String
 productionRules =
@@ -90,20 +106,29 @@ applyBinOp syms =
   zipWith (\a b -> catMaybes $ binApp <$> productionRules <*> a <*> b) syms $ tail syms
 
 -- TODO: check patterns (n-1) e.g. CYK algo
+-- zipWith mul opRing (tail opRing)
 
 -- TODO: this is NOT how to construct a matrix
 __a =
   UpperRightTriangularMatrix
     ( UpperRightTriangularMatrix
-        (UpperRightTriangularMatrix (UnitMatrix a) Empty (UnitMatrix b))
-        Empty
-        (UpperRightTriangularMatrix (UnitMatrix c) Empty (UnitMatrix d))
+        (UpperRightTriangularMatrix Empty (UnitMatrix a) Empty)
+        (SquareMatrix Empty Empty (UnitMatrix b) Empty)
+        (UpperRightTriangularMatrix Empty (UnitMatrix c) Empty)
     )
-    Empty
-    ( UpperRightTriangularMatrix
-        (UpperRightTriangularMatrix (UnitMatrix e) Empty (UnitMatrix f))
+    ( SquareMatrix
         Empty
-        (UpperRightTriangularMatrix (UnitMatrix g) Empty (UnitMatrix h))
+        Empty
+        (SquareMatrix Empty Empty (UnitMatrix d) Empty)
+        Empty
+    )
+    ( UpperRightTriangularMatrix
+        (UpperRightTriangularMatrix Empty (UnitMatrix e) Empty)
+        (SquareMatrix Empty Empty (UnitMatrix f) Empty)
+        (UpperRightTriangularMatrix Empty (UnitMatrix g) Empty)
     )
   where
-    [a, b, c, d, e, f, g, h] = opRing ++ [RingParse $ S.fromList []]
+    [a, b, c, d, e, f, g] = opRing
+
+-- [a, b, c, d, e, f, g] = [1 .. 7]
+-- a `mul` ((b `mul` (c `mul` d)) `mul` (e `mul` (f `mul` g)))

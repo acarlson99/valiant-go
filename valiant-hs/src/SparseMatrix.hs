@@ -344,7 +344,7 @@ class Valiant a where
   v :: a -> a -> a -> a
 
 instance Ring a => Valiant (Matrix 'Zero a) where
-  v Empty (UnitMatrix x) Empty = UnitMatrix x
+  -- v Empty (UnitMatrix x) Empty = UnitMatrix x
   v _ x _ = x
 
 instance (Ring (Matrix n a), Valiant (Matrix n a)) => Valiant (Matrix ('Succ n) a) where
@@ -357,3 +357,21 @@ instance (Ring (Matrix n a), Valiant (Matrix n a)) => Valiant (Matrix ('Succ n) 
       y22 = v a22 ((x22 `add` y21) `mul` b12) b22
       y12 = v a11 ((x12 `add` a12) `mul` (y22 `add` y11) `mul` b12) b22
   v _ _ _ = undefined
+
+bin :: Valiant (Matrix n a) => Matrix ('Succ n) a -> Matrix ('Succ n) a
+bin (UpperRightTriangularMatrix a t b) = UpperRightTriangularMatrix a (v a t b) b
+bin _ = undefined
+
+class (Valiant a) => Thingy a where
+  thingy :: a -> a
+
+instance Ring a => Thingy (Matrix 'Zero a) where
+  thingy = id
+
+instance (Ring a, Thingy (Matrix n a), Ring (Matrix n a)) => Thingy (Matrix ('Succ n) a) where
+  thingy (UpperRightTriangularMatrix a t b) =
+    let a' = thingy a
+        t' = thingy $ v a' t b'
+        b' = thingy b
+     in UpperRightTriangularMatrix a' t' b'
+  thingy x = x
