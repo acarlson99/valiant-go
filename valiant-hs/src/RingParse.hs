@@ -43,6 +43,9 @@ unaryApp Binary {} _ = Nothing
 
 newtype RingParse a = RingParse {getSyms :: S.Set (Symbol a)}
 
+instance Eq a => Eq (RingParse a) where
+  a == b = getSyms a == getSyms b
+
 liftRPF ::
   (Ord a3, Monoid a3) =>
   (S.Set (Symbol a1) -> S.Set (Symbol a2) -> S.Set (Symbol a3)) ->

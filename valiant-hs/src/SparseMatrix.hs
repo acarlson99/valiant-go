@@ -169,6 +169,13 @@ instance (Applicative (Matrix n), Semigroup a) => Semigroup (Matrix n a) where
 instance (Applicative (Matrix n), Semigroup a) => Monoid (Matrix n a) where
   mempty = Empty
 
+instance Eq a => Eq (Matrix n a) where
+  (SquareMatrix a b c d) == (SquareMatrix a' b' c' d') = a == a' && b == b' && c == c' && d == d'
+  (UpperRightTriangularMatrix a b c) == (UpperRightTriangularMatrix a' b' c') = SquareMatrix a b Empty c == SquareMatrix a' b' Empty c'
+  (UnitMatrix a) == (UnitMatrix b) = a == b
+  Empty == Empty = True
+  _ == _ = False
+
 ---------------------------------- Show ----------------------------------------
 
 -- Richard Bird repmin
