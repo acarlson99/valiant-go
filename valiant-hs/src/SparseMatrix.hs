@@ -369,16 +369,16 @@ bin :: Valiant (Matrix n a) => Matrix ('Succ n) a -> Matrix ('Succ n) a
 bin (UpperRightTriangularMatrix a t b) = UpperRightTriangularMatrix a (v a t b) b
 bin _ = undefined
 
-class (Valiant a) => Thingy a where
-  thingy :: a -> a
+class (Valiant a) => RunV a where
+  runV :: a -> a
 
-instance Ring a => Thingy (Matrix 'Zero a) where
-  thingy = id
+instance Ring a => RunV (Matrix 'Zero a) where
+  runV = id
 
-instance (Ring a, Thingy (Matrix n a), Ring (Matrix n a)) => Thingy (Matrix ('Succ n) a) where
-  thingy (UpperRightTriangularMatrix a t b) =
-    let a' = thingy a
-        t' = thingy $ v a' t b'
-        b' = thingy b
+instance (Ring a, RunV (Matrix n a), Ring (Matrix n a)) => RunV (Matrix ('Succ n) a) where
+  runV (UpperRightTriangularMatrix a t b) =
+    let a' = runV a
+        t' = runV $ v a' t b'
+        b' = runV b
      in UpperRightTriangularMatrix a' t' b'
-  thingy x = x
+  runV x = x
