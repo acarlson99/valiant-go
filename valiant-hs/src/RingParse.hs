@@ -111,7 +111,7 @@ applyBinOp syms =
 -- TODO: check patterns (n-1) e.g. CYK algo
 -- zipWith mul opRing (tail opRing)
 
--- TODO: this is NOT how to construct a matrix
+-- TODO: better way to how to construct a matrix
 __a =
   UpperRightTriangularMatrix
     ( UpperRightTriangularMatrix
