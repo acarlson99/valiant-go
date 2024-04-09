@@ -143,8 +143,8 @@ mulSM (SquareMatrix a11 a12
                     c21 c22
   where
     (+) = add; (*) = mul
-    c11 = a11*b11 + a12*b21;   c12 = a11*b12 + a12*b22
-    c21 = a21*b11 + a22*b21;   c22 = a21*b12 + a22*b22
+    c11 = (a11*b11) + (a12*b21);   c12 = (a11*b12) + (a12*b22)
+    c21 = (a21*b11) + (a22*b21);   c22 = (a21*b12) + (a22*b22)
 {- ORMOLU_ENABLE -}
 mulSM _ _ = error "Illegal type combination for mulSM"
 
@@ -360,9 +360,9 @@ instance (Ring (Matrix n a), Valiant (Matrix n a)) => Valiant (Matrix ('Succ n) 
   v (UpperRightTriangularMatrix a11 a12 a22) (SquareMatrix x11 x12 x21 x22) (UpperRightTriangularMatrix b11 b12 b22) = SquareMatrix y11 y12 y21 y22
     where
       y21 = v a22 x21 b11 :: Matrix n a
-      y11 = v a11 ((x11 `add` a12) `mul` y21) b11
-      y22 = v a22 ((x22 `add` y21) `mul` b12) b22
-      y12 = v a11 ((x12 `add` a12) `mul` (y22 `add` y11) `mul` b12) b22
+      y11 = v a11 (x11 `add` (a12 `mul` y21)) b11
+      y22 = v a22 (x22 `add` (y21 `mul` b12)) b22
+      y12 = v a11 (x12 `add` (a12 `mul` y22) `add` (y11 `mul` b12)) b22
   v _ _ _ = undefined
 
 bin :: Valiant (Matrix n a) => Matrix ('Succ n) a -> Matrix ('Succ n) a
