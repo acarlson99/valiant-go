@@ -214,12 +214,28 @@ instance Functor LengthlessMat where
 -- instance (ConstructVMatrix n) => ConstructVMatrix ('Succ n) where
 --   constructVMatrix _ = undefined
 
+-- class ConstructVMatrix n where
+--   constructVMatrix :: Applicative (Matrix n) => Vec (ExpTwo n) Char -> Matrix n Char
+
+-- instance ConstructVMatrix 'Zero where
+--   constructVMatrix (VCons s VNil) = UnitMatrix s
+
+-- instance (Size n, ConstructMatrix n) => ConstructVMatrix ('Succ n) where
+--   constructVMatrix (VCons a _) = pure a
+--   constructVMatrix VNil = Empty
+
 class ConstructVMatrix n where
-  constructVMatrix :: Applicative (Matrix n) => Vec (ExpTwo n) Char -> Matrix n Char
+  constructVMatrix :: Applicative (Matrix n) => Vec (ExpTwo n) Char -> Matrix (Succ n) Char
 
 instance ConstructVMatrix 'Zero where
-  constructVMatrix (VCons s VNil) = UnitMatrix s
+  constructVMatrix (VCons s VNil) = UpperRightTriangularMatrix Empty (UnitMatrix s) Empty
 
+-- TODO: this should split a matrix like so:
+-- because `n` is always odd
+-- n = (length(vec)-1) / 2
+-- (as,rest) = splitN n vec
+-- (x,bs) = splitN One rest
+-- if bs =?= as then UpperRightTriangular (recurse as) (squareMatWithElemInBottomLeftCorner x) (recurse bs)
 instance (Size n, ConstructMatrix n) => ConstructVMatrix ('Succ n) where
   constructVMatrix (VCons a _) = pure a
   constructVMatrix VNil = Empty
