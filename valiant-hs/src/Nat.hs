@@ -131,7 +131,7 @@ type family Sub m n where
 
 type family Half (n :: Nat) :: Nat where
   Half 'Zero = 'Zero
-  Half ('Succ 'Zero) = 'Succ 'Zero
+  Half ('Succ 'Zero) = 'Zero
   Half ('Succ ('Succ n)) = 'Succ (Half n)
 
 data Fin :: Nat -> * where
@@ -161,8 +161,10 @@ instance SNatl n => SNatl ('Succ n) where
 data SNatWrap where
   SNatWrap :: SNatl a => SNat a -> SNatWrap
 
-snatHalf :: SNatl (Half n) => SNat n -> SNat (Half n)
-snatHalf n = snat
+snatHalf :: SNat a -> SNat (Half a)
+snatHalf (SSucc (SSucc n)) = SSucc (snatHalf n)
+snatHalf (SSucc SZero) = SZero
+snatHalf SZero = SZero
 
 type One = 'Succ 'Zero
 
