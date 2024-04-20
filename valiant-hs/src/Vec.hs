@@ -7,7 +7,6 @@
 {-# LANGUAGE KindSignatures #-}
 {-# LANGUAGE RankNTypes #-}
 {-# LANGUAGE ScopedTypeVariables #-}
-{-# LANGUAGE TypeApplications #-}
 {-# LANGUAGE TypeOperators #-}
 {-# LANGUAGE UndecidableInstances #-}
 
@@ -104,19 +103,32 @@ listToVecN (x : xs) = case listToVecN xs of VecN sn vs -> VecN (SSucc sn) (VCons
 instance Show n => Show (VecN n) where
   show (VecN sn v) = show v ++ " l=" ++ show sn
 
--- -- TODO: use VecN type
--- -- TODO: use vecsplitat to construct 4x4 mat
--- class VecSplitAt (n :: Nat) where
---   vecSplitAt :: (SNatl n, SNatl m) => SNat n -> a -> Vec (m :: Nat) a -> (Vec n a, Vec (m - n) a)
+-- TODO: use VecN type
+-- TODO: use vecsplitat to construct 4x4 mat
+class VecSplitAt (n :: Nat) where
+  vecSplitAt :: (SNatl n, SNatl m) => SNat n -> a -> Vec (m :: Nat) a -> (Vec n a, Vec (m - n) a)
 
--- instance SNatl n => VecSplitAt n where
---   vecSplitAt SZero _ v = (VNil, v)
---   vecSplitAt (SSucc n) df (VCons v vs) = (VCons v a, rest)
---     where
---       (a, rest) = vecSplitAt n df vs
---   vecSplitAt (SSucc n) df VNil = (VCons df a, rest)
---     where
---       (a, rest) = vecSplitAt n df VNil
+instance VecSplitAt Zero where
+  vecSplitAt SZero _ v = (VNil, v)
+
+instance (VecSplitAt n, SNatl n) => VecSplitAt (Succ n) where
+  vecSplitAt (SSucc n) df (VCons v vs) = (VCons v a, rest)
+    where
+      (a, rest) = vecSplitAt n df vs
+  vecSplitAt (SSucc n) df VNil = (VCons df a, rest)
+    where
+      (a, rest) = vecSplitAt n df VNil
+
+vecNCons x (VecN _ xs) = VecN snat $ VCons x xs
+
+vecNSplitAt :: SNat n -> a -> VecN a -> (VecN a, VecN a)
+vecNSplitAt SZero df v = (VecN snat VNil, v)
+vecNSplitAt (SSucc n) df (VecN l (VCons x xs)) =
+  let (a, rest) = vecNSplitAt n df $ VecN snat xs
+   in (vecNCons x a, rest)
+vecNSplitAt (SSucc n) df (VecN SZero VNil) =
+  let (a, rest) = vecNSplitAt n df $ VecN snat VNil
+   in (vecNCons df a, rest)
 
 -- vecSplitAt :: (SNatl n, SNatl m, SNatl (m - n)) => SNat n -> a -> Vec (m :: Nat) a -> (Vec n a, Vec (m - n) a)
 -- vecSplitAt SZero _ v = (VNil, v)
