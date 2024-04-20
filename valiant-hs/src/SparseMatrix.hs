@@ -6,6 +6,7 @@
 {-# LANGUAGE MultiParamTypeClasses #-}
 {-# LANGUAGE PolyKinds #-}
 {-# LANGUAGE ScopedTypeVariables #-}
+{-# LANGUAGE TypeApplications #-}
 {-# LANGUAGE TypeFamilies #-}
 {-# LANGUAGE TypeOperators #-}
 {-# LANGUAGE UndecidableInstances #-}
@@ -18,6 +19,7 @@ module SparseMatrix
   )
 where
 
+import Data.Data
 import Nat
 import Ring
 import Vec
@@ -297,6 +299,42 @@ mfs = constructMatrixFromShape (sq sqa sqb sqa sqb)
     sqb = sq 5 6 7 8
 
 ------------------------------- Algorithm --------------------------------------
+
+data MatrixN a where
+  MatrixN :: SNat n -> Matrix n a -> MatrixN a
+
+-- instance Show a => Show (MatrixN a) where
+--   show mn = case mn of (MatrixN n m) -> show m
+
+sqMatWithValInBottomLeft :: a -> SNat n -> Matrix n a
+sqMatWithValInBottomLeft a SZero = UnitMatrix a
+sqMatWithValInBottomLeft a (SSucc n) =
+  let m = sqMatWithValInBottomLeft a n
+   in SquareMatrix Empty Empty m Empty
+
+-- TODO: this should split a matrix like so:
+-- because `n` is always odd
+-- n = (length(vec)-1) / 2
+-- (as,rest) = splitN n vec
+-- (x,bs) = splitN One rest
+-- if bs =?= as then UpperRightTriangular (recurse as) (squareMatWithElemInBottomLeftCorner x) (recurse bs)
+vecNToValiantMatrixN :: Monoid a => VecN a -> MatrixN a
+vecNToValiantMatrixN (VecN SZero VNil) = MatrixN SZero Empty
+vecNToValiantMatrixN (VecN l xs) =
+  let h = snatHalf l
+      (as, rest) = vecNSplitAt h mempty (VecN l xs)
+      (b, cs') = vecNSplitFirst rest
+      (cs, _) = vecNSplitAt h mempty cs'
+      ul = vecNToValiantMatrixN as
+      br = vecNToValiantMatrixN cs
+      ur = sqMatWithValInBottomLeft b $ snat @One
+   in case ul of
+        (MatrixN n ulm) -> case br of
+          (MatrixN m brm) ->
+            case n =?= m of
+              Just Refl ->
+                MatrixN (SSucc n) $ UpperRightTriangularMatrix ulm Empty brm
+              Nothing -> error "Recursing did not go well-- this should never happen"
 
 -- class ConstructSqShape a b where
 --   constructSqShape :: a -> b

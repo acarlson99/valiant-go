@@ -1,6 +1,7 @@
 {-# LANGUAGE DataKinds #-}
 {-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE GADTs #-}
+{-# LANGUAGE MultiParamTypeClasses #-}
 {-# LANGUAGE RankNTypes #-}
 {-# LANGUAGE TypeFamilies #-}
 {-# LANGUAGE TypeOperators #-}
@@ -188,3 +189,15 @@ type Ten = Nine + One
 
 class NatTypeToVal a where
   natTypeToVal :: a -> Nat
+
+class SNatEq s t where
+  (=?=) :: s -> t -> Maybe (s :~: t)
+
+instance SNatEq (SNat s) (SNat t) where
+  SZero =?= SZero = Just Refl
+  SSucc a =?= SSucc b =
+    -- (a =?= b) >>>=== (\c -> return Refl) -- this does not work
+    case a =?= b of
+      Nothing -> Nothing
+      Just Refl -> Just Refl
+  _ =?= _ = Nothing

@@ -100,25 +100,6 @@ data TypedVec where
 --     Just Refl -> Just Refl
 -- _ =?= _ = Nothing
 
-class SNatEq s t where
-  (=?=) :: s -> t -> Maybe (s :~: t)
-
-instance SNatEq (Vec n a) (Vec m a) where
-  VNil =?= VNil = Just Refl
-  (VCons a as) =?= (VCons b bs) = case as =?= bs of
-    Nothing -> Nothing
-    Just Refl -> Just Refl
-  _ =?= _ = Nothing
-
-instance SNatEq (SNat s) (SNat t) where
-  SZero =?= SZero = Just Refl
-  SSucc a =?= SSucc b =
-    -- (a =?= b) >>>=== (\c -> return Refl) -- this does not work
-    case a =?= b of
-      Nothing -> Nothing
-      Just Refl -> Just Refl
-  _ =?= _ = Nothing
-
 instance SNatEq TypedMat TypedMat where
   (=?=) (a ::: at) (b ::: bt) =
     case at =?= bt of
@@ -306,42 +287,6 @@ it ls = helper ls SZero
         Nothing -> error "this should not happen"
         Just Refl -> l
       Nothing -> helper ls (SSucc n)
-
-data MatrixN a where
-  MatrixN :: SNat n -> Matrix n a -> MatrixN a
-
--- instance Show a => Show (MatrixN a) where
---   show mn = case mn of (MatrixN n m) -> show m
-
-sqMatWithValInBottomLeft :: a -> SNat n -> Matrix n a
-sqMatWithValInBottomLeft a SZero = UnitMatrix a
-sqMatWithValInBottomLeft a (SSucc n) =
-  let m = sqMatWithValInBottomLeft a n
-   in SquareMatrix Empty Empty m Empty
-
--- TODO: this should split a matrix like so:
--- because `n` is always odd
--- n = (length(vec)-1) / 2
--- (as,rest) = splitN n vec
--- (x,bs) = splitN One rest
--- if bs =?= as then UpperRightTriangular (recurse as) (squareMatWithElemInBottomLeftCorner x) (recurse bs)
-vecNToValiantMatrixN :: Monoid a => VecN a -> MatrixN a
-vecNToValiantMatrixN (VecN SZero VNil) = MatrixN SZero Empty
-vecNToValiantMatrixN (VecN l xs) =
-  let h = snatHalf l
-      (as, rest) = vecNSplitAt h mempty (VecN l xs)
-      (b, cs') = vecNSplitFirst rest
-      (cs, _) = vecNSplitAt h mempty cs'
-      ul = vecNToValiantMatrixN as
-      br = vecNToValiantMatrixN cs
-      ur = sqMatWithValInBottomLeft b $ snat @One
-   in case ul of
-        (MatrixN n ulm) -> case br of
-          (MatrixN m brm) ->
-            case n =?= m of
-              Just Refl ->
-                MatrixN (SSucc n) $ UpperRightTriangularMatrix ulm Empty brm
-              Nothing -> error "Recursing did not go well-- this should never happen"
 
 -- -- TODO: quarter
 -- -- TODO: shuffle into SqShape

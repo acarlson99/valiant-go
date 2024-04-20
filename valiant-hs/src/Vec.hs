@@ -1,10 +1,10 @@
-{-# LANGUAGE ConstrainedClassMethods #-}
 {-# LANGUAGE DataKinds #-}
 {-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE GADTs #-}
 {-# LANGUAGE InstanceSigs #-}
 {-# LANGUAGE KindSignatures #-}
+{-# LANGUAGE MultiParamTypeClasses #-}
 {-# LANGUAGE RankNTypes #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE TypeOperators #-}
@@ -12,6 +12,7 @@
 
 module Vec where
 
+import Data.Data
 import Nat
 
 -- TODO: add SNatl constraint??
@@ -121,6 +122,10 @@ instance (VecSplitAt n, SNatl n) => VecSplitAt (Succ n) where
 
 vecNCons x (VecN _ xs) = VecN snat $ VCons x xs
 
+vecNSplitFirst :: Monoid a => VecN a -> (a, VecN a)
+vecNSplitFirst (VecN _ (VCons x xs)) = (x, VecN snat xs)
+vecNSplitFirst vs = (mempty, vs)
+
 vecNSplitAt :: SNat n -> a -> VecN a -> (VecN a, VecN a)
 vecNSplitAt SZero df v = (VecN snat VNil, v)
 vecNSplitAt (SSucc n) df (VecN l (VCons x xs)) =
@@ -136,3 +141,10 @@ vecNSplitAt (SSucc n) df (VecN SZero VNil) =
 --   where
 --     (a, rest) = vecSplitAt n df VNil
 -- vecSplitAt _ _ _ = undefined
+
+instance SNatEq (Vec n a) (Vec m a) where
+  VNil =?= VNil = Just Refl
+  (VCons a as) =?= (VCons b bs) = case as =?= bs of
+    Nothing -> Nothing
+    Just Refl -> Just Refl
+  _ =?= _ = Nothing
