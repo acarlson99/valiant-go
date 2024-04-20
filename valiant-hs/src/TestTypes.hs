@@ -2,6 +2,7 @@
 {-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE GADTs #-}
+{-# LANGUAGE InstanceSigs #-}
 {-# LANGUAGE MultiParamTypeClasses #-}
 {-# LANGUAGE PolyKinds #-}
 {-# LANGUAGE RankNTypes #-}
@@ -55,35 +56,6 @@ fnuc (LengthyListy v n) = undefined
 
 shift :: (SNatl m, SNatl n) => Vec (Succ m) a -> Vec n a -> (Vec m a, Vec (Succ n) a)
 shift (VCons a as) bs = (as, VCons a bs)
-
--- class SplitN (n :: Nat) where
---   splitN :: a -> Vec (m :: Nat) a -> (Vec n a, Vec (m - n) a)
-
--- instance SplitN 'Zero where
---   splitN :: a -> Vec m a -> (Vec 'Zero a, Vec m a)
---   splitN _ v = (VNil, v)
-
--- instance SplitN n => SplitN ('Succ n) where
---   splitN :: SplitN n => a -> Vec m a -> (Vec ('Succ n) a, Vec (m - 'Succ n) a)
---   splitN df (VCons v vs) = (VCons v a, rest)
---     where
---       (a, rest) = splitN @n df vs
---   splitN df VNil = (VCons df a, rest)
---     where
---       (a, rest) = splitN @n df VNil
-
--- splitLl :: forall n a. SplitN n => SNat n -> a -> LenList a -> (LenList a, LenList a)
--- splitLl n df (LenList a) = (LenList a, LenList b)
---   where
---     (a, b) = splitN @n df a
-
--- __proof :: (Vec ('Succ ('Succ 'Zero)) Int, Vec ('Succ ('Succ 'Zero)) Int)
--- __proof = splitN @Two 0 ls
---   where
---     ls = VCons 1 (VCons 2 (VCons 3 (VCons 4 VNil)))
-
--- vecSplitAt :: forall a n m. SplitN n => SNat n -> a -> Vec m a -> (Vec n a, Vec (m - n) a)
--- vecSplitAt n = splitN @n
 
 class ConstructShape a where
   constructShape :: Vec (ExpFour (SqDepth b)) a -> b
@@ -338,8 +310,39 @@ it ls = helper ls SZero
 data MatrixN a where
   MatrixN :: SNat n -> Matrix n a -> MatrixN a
 
-fff :: VecN a -> MatrixN b
-fff = undefined
+-- instance Show a => Show (MatrixN a) where
+--   show mn = case mn of (MatrixN n m) -> show m
+
+sqMatWithValInBottomLeft :: a -> SNat n -> Matrix n a
+sqMatWithValInBottomLeft a SZero = UnitMatrix a
+sqMatWithValInBottomLeft a (SSucc n) =
+  let m = sqMatWithValInBottomLeft a n
+   in SquareMatrix Empty Empty m Empty
+
+-- TODO: this should split a matrix like so:
+-- because `n` is always odd
+-- n = (length(vec)-1) / 2
+-- (as,rest) = splitN n vec
+-- (x,bs) = splitN One rest
+-- if bs =?= as then UpperRightTriangular (recurse as) (squareMatWithElemInBottomLeftCorner x) (recurse bs)
+-- fff :: Monoid a => VecN a -> MatrixN b
+fff :: Monoid a => VecN a -> MatrixN a
+fff (VecN SZero VNil) = MatrixN SZero Empty
+fff (VecN l xs) =
+  let h = snatHalf l
+      (as, rest) = vecNSplitAt h mempty (VecN l xs)
+      (b, cs') = vecNSplitFirst rest
+      (cs, _) = vecNSplitAt h mempty cs'
+      ul = fff as
+      br = fff cs
+      ur = sqMatWithValInBottomLeft b $ snat @One
+   in case ul of
+        (MatrixN n ulm) -> case br of
+          (MatrixN m brm) ->
+            case n =?= m of
+              Just Refl ->
+                MatrixN (SSucc n) $ UpperRightTriangularMatrix ulm Empty brm
+              Nothing -> error "Recursing did not go well-- this should never happen"
 
 -- -- TODO: quarter
 -- -- TODO: shuffle into SqShape
