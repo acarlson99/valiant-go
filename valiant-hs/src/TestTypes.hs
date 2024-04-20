@@ -325,16 +325,15 @@ sqMatWithValInBottomLeft a (SSucc n) =
 -- (as,rest) = splitN n vec
 -- (x,bs) = splitN One rest
 -- if bs =?= as then UpperRightTriangular (recurse as) (squareMatWithElemInBottomLeftCorner x) (recurse bs)
--- fff :: Monoid a => VecN a -> MatrixN b
-fff :: Monoid a => VecN a -> MatrixN a
-fff (VecN SZero VNil) = MatrixN SZero Empty
-fff (VecN l xs) =
+vecNToValiantMatrixN :: Monoid a => VecN a -> MatrixN a
+vecNToValiantMatrixN (VecN SZero VNil) = MatrixN SZero Empty
+vecNToValiantMatrixN (VecN l xs) =
   let h = snatHalf l
       (as, rest) = vecNSplitAt h mempty (VecN l xs)
       (b, cs') = vecNSplitFirst rest
       (cs, _) = vecNSplitAt h mempty cs'
-      ul = fff as
-      br = fff cs
+      ul = vecNToValiantMatrixN as
+      br = vecNToValiantMatrixN cs
       ur = sqMatWithValInBottomLeft b $ snat @One
    in case ul of
         (MatrixN n ulm) -> case br of
