@@ -113,33 +113,22 @@ instance Functor (Matrix n) where
   fmap f (UnitMatrix a) = UnitMatrix (f a)
   fmap _ Empty = Empty
 
-instance Ring a => Ring (Matrix 'Zero a) where
+instance Ring a => Ring (Matrix n a) where
   zero = Empty
-  add = addZM
-  mul = mulZM
-
-addZM :: Ring a => Matrix 'Zero a -> Matrix 'Zero a -> Matrix 'Zero a
-addZM Empty y = y
-addZM x Empty = x
-addZM (UnitMatrix a) (UnitMatrix b) = UnitMatrix (add a b)
-
-mulZM :: Ring a => Matrix 'Zero a -> Matrix 'Zero a -> Matrix 'Zero a
-mulZM Empty _y = Empty
-mulZM _x Empty = Empty
-mulZM (UnitMatrix a) (UnitMatrix b) = UnitMatrix (mul a b)
-
-instance (Ring a, Ring (Matrix n a), Applicative (Matrix n), Applicative (Matrix ('Succ n))) => Ring (Matrix ('Succ n) a) where
-  zero = Empty
-  add = addSM
-  mul = mulSM
-
-addSM :: (Ring a, Applicative (Matrix (n + One))) => Matrix (n + One) a -> Matrix (n + One) a -> Matrix (n + One) a
-addSM Empty y = y
-addSM x Empty = x
-addSM x y = add <$> x <*> y
+  add Empty y = y
+  add x Empty = x
+  add (UnitMatrix a) (UnitMatrix b) = UnitMatrix (add a b)
+  add (SquareMatrix a b c d) (SquareMatrix e f g h) = SquareMatrix (add a e) (add b f) (add c g) (add d h)
+  add (UpperRightTriangularMatrix a b d) (UpperRightTriangularMatrix e f h) = UpperRightTriangularMatrix (add a e) (add b f) (add d h)
+  add (SquareMatrix a b c d) (UpperRightTriangularMatrix e f h) = add (SquareMatrix a b c d) (SquareMatrix e f Empty h)
+  add (UpperRightTriangularMatrix a b d) (SquareMatrix e f g h) = add (SquareMatrix a b Empty d) (SquareMatrix e f g h)
+  mul Empty y = Empty
+  mul x Empty = Empty
+  mul (UnitMatrix a) (UnitMatrix b) = UnitMatrix (mul a b)
+  mul x y = mulSM x y
 
 -- see Bernardy and Claessen, “Efficient Divide-and-Conquer Parsing of Practical Context-Free Languages.”
-mulSM :: (Ring (Matrix n a), Applicative (Matrix n)) => Matrix ('Succ n) a -> Matrix ('Succ n) a -> Matrix ('Succ n) a
+mulSM :: Ring a => Matrix n a -> Matrix n a -> Matrix n a
 mulSM Empty _y = Empty
 mulSM _x Empty = Empty
 {- ORMOLU_DISABLE -}
