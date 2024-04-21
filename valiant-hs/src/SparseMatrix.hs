@@ -101,6 +101,12 @@ instance Foldable (Matrix n) where
   foldr f acc (UnitMatrix a) = f a acc
   foldr _ acc Empty = acc
 
+foldrExpandEmpty :: Monoid a => (a -> b -> b) -> b -> Matrix n a -> b
+foldrExpandEmpty f acc (SquareMatrix a b c d) = foldr (flip $ foldrExpandEmpty f) acc [a, b, c, d]
+foldrExpandEmpty f acc (UpperRightTriangularMatrix a b d) = foldrExpandEmpty f acc (SquareMatrix a b Empty d)
+foldrExpandEmpty f acc (UnitMatrix a) = f a acc
+foldrExpandEmpty f acc Empty = f mempty acc
+
 instance Functor (Matrix n) where
   fmap f (SquareMatrix a b c d) = SquareMatrix (fmap f a) (fmap f b) (fmap f c) (fmap f d)
   fmap f (UpperRightTriangularMatrix a b d) = UpperRightTriangularMatrix (fmap f a) (fmap f b) (fmap f d)
@@ -327,14 +333,15 @@ vecNToValiantMatrixN (VecN l xs) =
       (cs, _) = vecNSplitAt h mempty cs'
       ul = vecNToValiantMatrixN as
       br = vecNToValiantMatrixN cs
-      ur = sqMatWithValInBottomLeft b $ snat @One
    in case ul of
         (MatrixN n ulm) -> case br of
           (MatrixN m brm) ->
             case n =?= m of
               Just Refl ->
-                MatrixN (SSucc n) $ UpperRightTriangularMatrix ulm Empty brm
+                MatrixN (SSucc n) $ UpperRightTriangularMatrix ulm (sqMatWithValInBottomLeft b n) brm
               Nothing -> error "Recursing did not go well-- this should never happen"
+
+-- case (vecNToValiantMatrixN $ listToVecN [1,2,3,4,5,6,7]) of (MatrixN n m) -> foldrExpandEmpty (:) [] m
 
 -- class ConstructSqShape a b where
 --   constructSqShape :: a -> b
