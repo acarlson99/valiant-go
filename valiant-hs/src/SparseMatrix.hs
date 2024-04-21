@@ -384,16 +384,12 @@ sqc :: Matrix ('Succ ('Succ ('Succ ('Succ 'Zero)))) Char
 class Valiant a where
   v :: a -> a -> a -> a
 
-instance Ring a => Valiant (Matrix 'Zero a) where
-  -- v Empty (UnitMatrix x) Empty = UnitMatrix x
-  v _ x _ = x
-
-instance (Ring (Matrix n a), Valiant (Matrix n a)) => Valiant (Matrix ('Succ n) a) where
-  v :: (Ring (Matrix n a), Valiant (Matrix n a)) => Matrix ('Succ n) a -> Matrix ('Succ n) a -> Matrix ('Succ n) a -> Matrix ('Succ n) a
+instance Ring a => Valiant (Matrix n a) where
   v _ Empty _ = Empty
+  v _ (UnitMatrix a) _ = UnitMatrix a
   v (UpperRightTriangularMatrix a11 a12 a22) (SquareMatrix x11 x12 x21 x22) (UpperRightTriangularMatrix b11 b12 b22) = SquareMatrix y11 y12 y21 y22
     where
-      y21 = v a22 x21 b11 :: Matrix n a
+      y21 = v a22 x21 b11
       y11 = v a11 (x11 `add` (a12 `mul` y21)) b11
       y22 = v a22 (x22 `add` (y21 `mul` b12)) b22
       y12 = v a11 (x12 `add` (a12 `mul` y22) `add` (y11 `mul` b12)) b22
@@ -406,10 +402,7 @@ bin _ = undefined
 class (Valiant a) => RunV a where
   runV :: a -> a
 
-instance Ring a => RunV (Matrix 'Zero a) where
-  runV = id
-
-instance (Ring a, RunV (Matrix n a), Ring (Matrix n a)) => RunV (Matrix ('Succ n) a) where
+instance Ring a => RunV (Matrix n a) where
   runV (UpperRightTriangularMatrix a t b) =
     let a' = runV a
         t' = runV $ v a' t b'
