@@ -409,3 +409,15 @@ instance Ring a => RunV (Matrix n a) where
         b' = runV b
      in UpperRightTriangularMatrix a' t' b'
   runV x = x
+
+topRightMost :: MatrixN a -> Maybe a
+topRightMost (MatrixN (SSucc n) m) = case m of
+  UpperRightTriangularMatrix _ a _ -> topRightMost $ MatrixN n a
+  SquareMatrix _ a _ _ -> topRightMost $ MatrixN n a
+  Empty -> Nothing
+topRightMost (MatrixN SZero m) = case m of
+  UnitMatrix a -> Just a
+  Empty -> Nothing
+
+liftV :: Ring a => MatrixN a -> MatrixN a
+liftV (MatrixN n m) = MatrixN n $ runV m
