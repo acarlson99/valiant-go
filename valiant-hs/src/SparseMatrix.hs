@@ -5,6 +5,7 @@
 {-# LANGUAGE InstanceSigs #-}
 {-# LANGUAGE MultiParamTypeClasses #-}
 {-# LANGUAGE PolyKinds #-}
+{-# LANGUAGE RankNTypes #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE TypeApplications #-}
 {-# LANGUAGE TypeFamilies #-}
@@ -421,3 +422,15 @@ topRightMost (MatrixN SZero m) = case m of
 
 liftV :: Ring a => MatrixN a -> MatrixN a
 liftV (MatrixN n m) = MatrixN n $ runV m
+
+topRightMost' :: Matrix n a -> Maybe a
+topRightMost' m = case m of
+  UpperRightTriangularMatrix _ a _ -> topRightMost' a
+  SquareMatrix _ a _ _ -> topRightMost' a
+  UnitMatrix a -> Just a
+  Empty -> Nothing
+
+liftMatF :: (forall n. Matrix n a -> b) -> MatrixN a -> b
+liftMatF f (MatrixN n m) = f m
+
+-- (liftMatF topRightMost') . liftV $ vecNToValiantMatrixN $ listToVecN opRing
