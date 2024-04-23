@@ -47,11 +47,10 @@ instance Eq a => Eq (RingParse a) where
   a == b = getSyms a == getSyms b
 
 liftRPF ::
-  (Ord a3, Monoid a3) =>
-  (S.Set (Symbol a1) -> S.Set (Symbol a2) -> S.Set (Symbol a3)) ->
-  RingParse a1 ->
-  RingParse a2 ->
-  RingParse a3
+  (S.Set (Symbol a) -> S.Set (Symbol b) -> S.Set (Symbol c)) ->
+  RingParse a ->
+  RingParse b ->
+  RingParse c
 liftRPF f (RingParse as) (RingParse bs) = RingParse $ f as bs
 
 instance (Monoid a, Ord a) => Semigroup (RingParse a) where
