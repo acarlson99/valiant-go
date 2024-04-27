@@ -5,6 +5,7 @@
 
 module RingParse where
 
+import Control.Applicative
 import Data.Maybe (catMaybes)
 import qualified Data.Set as S
 import Ring
@@ -41,25 +42,32 @@ binApp Unary {} _ _ = Nothing
 unaryApp (Unary n a) x = if x == a then return $ Nonterminal n else Nothing
 unaryApp Binary {} _ = Nothing
 
-newtype RingParse a = RingParse {getSyms :: S.Set (Symbol a)}
+newtype RingParse f a = RingParse {getSyms :: f a}
 
-instance Eq a => Eq (RingParse a) where
+instance Eq (f a) => Eq (RingParse f a) where
   a == b = getSyms a == getSyms b
+
+instance Functor f => Functor (RingParse f) where
+  fmap f = RingParse . fmap f . getSyms
+
+instance Applicative f => Applicative (RingParse f) where
+  pure = RingParse . pure
+  (<*>) (RingParse fs) (RingParse v) = RingParse $ fs <*> v
 
 liftRPF ::
   (S.Set (Symbol a) -> S.Set (Symbol b) -> S.Set (Symbol c)) ->
-  RingParse a ->
-  RingParse b ->
-  RingParse c
+  RingParse S.Set (Symbol a) ->
+  RingParse S.Set (Symbol b) ->
+  RingParse S.Set (Symbol c)
 liftRPF f (RingParse as) (RingParse bs) = RingParse $ f as bs
 
-instance (Monoid a, Ord a) => Semigroup (RingParse a) where
-  (<>) = liftRPF S.union
+instance (Applicative f, Semigroup a) => Semigroup (RingParse f a) where
+  (<>) = liftA2 (<>)
 
-instance (Monoid a, Ord a) => Monoid (RingParse a) where
+instance (Monoid a, Ord a, Applicative f, Monoid (f a)) => Monoid (RingParse f a) where
   mempty = RingParse mempty
 
-instance Show a => Show (RingParse a) where
+instance (f ~ S.Set, Show a) => Show (RingParse f a) where
   show (RingParse s) = show $ S.toList s
 
 productionRules :: ProductionRules String
@@ -78,9 +86,9 @@ productionRules =
     Unary "Det" (Terminal "a")
   ]
 
-instance a ~ String => Ring (RingParse a) where
+instance (f ~ S.Set, a ~ Symbol String) => Ring (RingParse f a) where
   zero = RingParse mempty
-  add (RingParse sa) (RingParse sb) = RingParse $ S.union sa sb
+  add (RingParse sa) (RingParse sb) = RingParse $ (<>) sa sb
   mul (RingParse x) (RingParse y) = RingParse sc
     where
       s = catMaybes [binApp a a_0 a_1 | a_0 <- S.toList x, a_1 <- S.toList y, a <- productionRules]
@@ -92,7 +100,7 @@ applyUnaryOp = catMaybes . (<$> productionRules) . flip unaryApp
 
 unaryOps = applyUnaryOp <$> syms
 
-opRing :: [RingParse String]
+opRing :: [RingParse S.Set (Symbol String)]
 opRing = map (RingParse . S.fromList) unaryOps
 
 __f = a `mul` b
