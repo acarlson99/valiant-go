@@ -1,3 +1,4 @@
+{-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE GADTs #-}
 {-# LANGUAGE InstanceSigs #-}
 {-# LANGUAGE MultiParamTypeClasses #-}
@@ -34,34 +35,37 @@ instance (Show t, Show nt) => Show (ProductionRule nt t) where
         (Unary n a) -> (Nonterminal n, [a])
         (Binary n a b) -> (Nonterminal n, [a, b])
 
+binApp :: (Eq nt, Eq t) => ProductionRule nt t -> Symbol nt t -> Symbol nt t -> Maybe (Symbol nt t)
 binApp (Binary n a b) x y = if x == a && b == y then return $ Nonterminal n else Nothing
 binApp Unary {} _ _ = Nothing
 
+unaryApp :: (Eq nt, Eq t) => ProductionRule nt t -> Symbol nt t -> Maybe (Symbol nt t)
 unaryApp (Unary n a) x = if x == a then return $ Nonterminal n else Nothing
 unaryApp Binary {} _ = Nothing
 
-newtype RingParse f a = RingParse {getSyms :: f a}
+newtype RingParse a = RingParse {getSyms :: S.Set a}
 
-instance Eq (f a) => Eq (RingParse f a) where
+instance Eq a => Eq (RingParse a) where
   a == b = getSyms a == getSyms b
 
-instance Functor f => Functor (RingParse f) where
-  fmap f = RingParse . fmap f . getSyms
+-- instance Functor RingParse where
+--   fmap f = RingParse . S.fromList . fmap f . S.toList . getSyms
 
-instance Applicative f => Applicative (RingParse f) where
-  pure = RingParse . pure
-  (<*>) (RingParse fs) (RingParse v) = RingParse $ fs <*> v
+-- instance Applicative RingParse where
+--   pure = RingParse . S.fromList . pure
+--   (<*>) (RingParse fs) (RingParse v) = RingParse $ fs <*> v
 
-liftRPF :: (ma a -> mb b -> mc c) -> RingParse ma a -> RingParse mb b -> RingParse mc c
+liftRPF :: (S.Set a -> S.Set b -> S.Set c) -> RingParse a -> RingParse b -> RingParse c
 liftRPF f (RingParse as) (RingParse bs) = RingParse $ f as bs
 
-instance (Applicative f, Semigroup a) => Semigroup (RingParse f a) where
-  (<>) = liftA2 (<>)
+instance Ord a => Semigroup (RingParse a) where
+  -- (<>) = liftA2 (<>)
+  (<>) (RingParse as) (RingParse bs) = RingParse $ as <> bs
 
-instance (Monoid a, Ord a, Applicative f, Monoid (f a)) => Monoid (RingParse f a) where
+instance (Monoid a, Ord a) => Monoid (RingParse a) where
   mempty = RingParse mempty
 
-instance (Show a, Foldable f) => Show (RingParse f a) where
+instance (Show a) => Show (RingParse a) where
   show (RingParse s) = show $ foldr (:) [] s
 
 productionRules :: ProductionRules String String
@@ -81,14 +85,15 @@ productionRules =
   ]
 
 -- TODO: change this def to foldable+monoid
--- instance (Foldable f, Monoid (f a)) => Ring (RingParse f a) where
-instance (f ~ S.Set, a ~ Symbol String String) => Ring (RingParse f a) where
+instance (a ~ Symbol String String) => Ring (RingParse a) where
   zero = RingParse mempty
   add (RingParse sa) (RingParse sb) = RingParse $ (<>) sa sb
-  mul (RingParse x) (RingParse y) = RingParse sc
+  mul (RingParse x) (RingParse y) = RingParse $ foldr S.insert S.empty s
     where
-      s = catMaybes [binApp a a_0 a_1 | a_0 <- S.toList x, a_1 <- S.toList y, a <- productionRules]
-      sc = S.fromList s
+      toL xs = foldr (:) [] xs
+      s = catMaybes [binApp a a_0 a_1 | a_0 <- toL x, a_1 <- toL y, a <- productionRules]
+
+-- sc = S.fromList s
 
 syms = map Terminal $ words "she eats a fish with a fork"
 
@@ -96,7 +101,7 @@ applyUnaryOp = catMaybes . (<$> productionRules) . flip unaryApp
 
 unaryOps = applyUnaryOp <$> syms
 
-opRing :: [RingParse S.Set (Symbol String String)]
+opRing :: [RingParse (Symbol String String)]
 opRing = map (RingParse . S.fromList) unaryOps
 
 __f = a `mul` b
