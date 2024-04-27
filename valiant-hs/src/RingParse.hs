@@ -61,8 +61,8 @@ instance (Applicative f, Semigroup a) => Semigroup (RingParse f a) where
 instance (Monoid a, Ord a, Applicative f, Monoid (f a)) => Monoid (RingParse f a) where
   mempty = RingParse mempty
 
-instance (f ~ S.Set, Show a) => Show (RingParse f a) where
-  show (RingParse s) = show $ S.toList s
+instance (Show a, Foldable f) => Show (RingParse f a) where
+  show (RingParse s) = show $ foldr (:) [] s
 
 productionRules :: ProductionRules String String
 productionRules =
@@ -80,6 +80,8 @@ productionRules =
     Unary "Det" (Terminal "a")
   ]
 
+-- TODO: change this def to foldable+monoid
+-- instance (Foldable f, Monoid (f a)) => Ring (RingParse f a) where
 instance (f ~ S.Set, a ~ Symbol String String) => Ring (RingParse f a) where
   zero = RingParse mempty
   add (RingParse sa) (RingParse sb) = RingParse $ (<>) sa sb
