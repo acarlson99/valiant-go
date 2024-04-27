@@ -177,28 +177,28 @@ instance Eq a => Eq (Matrix n a) where
 ---------------------------------- Show ----------------------------------------
 
 -- Richard Bird repmin
-class (Show a) => BirdWalk a where
-  walk :: Int -> a -> (Int, String)
+class (Show a, Show b) => BirdWalk a b where
+  walk :: Int -> a -> b -> (Int, String)
 
-instance (Show m, Monoid m) => Show (Matrix 'Zero m) where
+instance (Show m, Ring m, Ring m) => Show (Matrix 'Zero m) where
   show m = s
     where
-      (topMax, s) = walk topMax m
+      (topMax, s) = walk topMax m (zero @m)
 
 instance
-  (Show m, BirdWalk (Matrix n m), Size n) =>
+  (Show m, BirdWalk (Matrix n m) m, Size n, Ring m) =>
   Show (Matrix ('Succ n) m)
   where
   show mat = s
     where
-      (topMax, s) = walk topMax mat
+      (topMax, s) = walk topMax mat (zero @m)
 
-instance (Show m, Monoid m) => BirdWalk (Matrix 'Zero m) where
-  walk topMax mat = (length s, fixLength topMax s)
+instance (Show m, Ring m) => BirdWalk (Matrix 'Zero m) m where
+  walk topMax mat zv = (length s, fixLength topMax s)
     where
       s = show $ case mat of
         UnitMatrix m -> m
-        Empty -> mempty
+        Empty -> zv
       fixLength n x
         | len == 0 = replicate n ' '
         | otherwise = replicate (n - len) ' ' ++ x
@@ -206,17 +206,17 @@ instance (Show m, Monoid m) => BirdWalk (Matrix 'Zero m) where
           len = length x
 
 instance
-  (Show m, Size n, BirdWalk (Matrix n m)) =>
-  BirdWalk (Matrix ('Succ n) m)
+  (Show m, Size n, BirdWalk (Matrix n m) m, Ring m) =>
+  BirdWalk (Matrix ('Succ n) m) m
   where
-  walk topMax mat = case mat of
+  walk topMax mat zv = case mat of
     (SquareMatrix a b c d) -> (foldr max 0 ns, concatQuads sa sb sc sd)
       where
-        (ns, [sa, sb, sc, sd]) = unzip $ map (walk topMax) [a, b, c, d]
+        (ns, [sa, sb, sc, sd]) = unzip $ map (\m -> walk topMax m zv) [a, b, c, d]
     (UpperRightTriangularMatrix a b d) -> (foldr max 0 ns, concatQuads sa sb sc sd)
       where
-        (ns, [sa, sb, sc, sd]) = unzip $ map (walk topMax) [a, b, Empty, d]
-    Empty -> walk topMax (SquareMatrix Empty Empty Empty Empty :: Matrix ('Succ n) m)
+        (ns, [sa, sb, sc, sd]) = unzip $ map (\m -> walk topMax m zv) [a, b, Empty, d]
+    Empty -> walk topMax (SquareMatrix Empty Empty Empty Empty :: Matrix ('Succ n) m) zv
 
 concatQuads :: String -> String -> String -> String -> String
 concatQuads a b c d = dropLast $ concatMap pairConcat [(a, b), (c, d)]
