@@ -20,12 +20,12 @@ instance (Show t, Show nt) => Show (Symbol nt t) where
   show (Terminal a) = '\'' : show a
 
 data ProductionRule nt t where
-  Binary :: nt -> Symbol nt t -> Symbol nt t -> ProductionRule t nt
-  Unary :: nt -> Symbol nt t -> ProductionRule t nt
+  Binary :: nt -> Symbol nt t -> Symbol nt t -> ProductionRule nt t
+  Unary :: nt -> Symbol nt t -> ProductionRule nt t
 
-type ProductionRules t nt = [ProductionRule t nt]
+type ProductionRules nt t = [ProductionRule nt t]
 
-instance (Show t, Show nt) => Show (ProductionRule t nt) where
+instance (Show t, Show nt) => Show (ProductionRule nt t) where
   show rule = show n ++ " -> " ++ concatMap show s
     where
       s :: [Symbol nt t]
