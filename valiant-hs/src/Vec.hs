@@ -122,9 +122,9 @@ instance (VecSplitAt n, SNatl n) => VecSplitAt (Succ n) where
 
 vecNCons x (VecN _ xs) = VecN snat $ VCons x xs
 
-vecNSplitFirst :: Monoid a => VecN a -> (a, VecN a)
-vecNSplitFirst (VecN _ (VCons x xs)) = (x, VecN snat xs)
-vecNSplitFirst vs = (mempty, vs)
+vecNSplitFirst :: a -> VecN a -> (a, VecN a)
+vecNSplitFirst e (VecN _ (VCons x xs)) = (x, VecN snat xs)
+vecNSplitFirst e vs = (e, vs)
 
 vecNSplitAt :: SNat n -> a -> VecN a -> (VecN a, VecN a)
 vecNSplitAt SZero df v = (VecN snat VNil, v)

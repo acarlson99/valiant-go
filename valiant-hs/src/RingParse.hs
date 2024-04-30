@@ -1,4 +1,6 @@
+{-# LANGUAGE DataKinds #-}
 {-# LANGUAGE FlexibleContexts #-}
+{-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE GADTs #-}
 {-# LANGUAGE InstanceSigs #-}
 {-# LANGUAGE MultiParamTypeClasses #-}
@@ -10,7 +12,6 @@ import Control.Applicative
 import Data.Maybe (catMaybes)
 import qualified Data.Set as S
 import Ring
-import SparseMatrix
 import Vec
 
 data Symbol nt t = Nonterminal nt | Terminal t
@@ -84,7 +85,6 @@ productionRules =
     Unary "Det" (Terminal "a")
   ]
 
--- TODO: change this def to foldable+monoid
 instance (a ~ Symbol String String) => Ring (RingParse a) where
   zero = RingParse mempty
   add (RingParse sa) (RingParse sb) = RingParse $ (<>) sa sb
@@ -93,7 +93,18 @@ instance (a ~ Symbol String String) => Ring (RingParse a) where
       toL xs = foldr (:) [] xs
       s = catMaybes [binApp a a_0 a_1 | a_0 <- toL x, a_1 <- toL y, a <- productionRules]
 
--- sc = S.fromList s
+instance (a ~ Symbol String String) => Ring (ProductionRules String String -> RingParse a) where
+  zero = \_ -> RingParse mempty
+  add fa fb = \pr ->
+    let (RingParse sa) = fa pr
+        (RingParse sb) = fb pr
+     in RingParse $ (<>) sa sb
+  mul fx fy = \pr ->
+    let (RingParse x) = fx pr
+        (RingParse y) = fy pr
+        toL xs = S.toList xs
+        s = catMaybes [binApp a a_0 a_1 | a_0 <- toL x, a_1 <- toL y, a <- pr]
+     in RingParse $ foldr S.insert S.empty s
 
 syms = map Terminal $ words "she eats a fish with a fork"
 
@@ -104,7 +115,8 @@ unaryOps = applyUnaryOp <$> syms
 opRing :: [RingParse (Symbol String String)]
 opRing = map (RingParse . S.fromList) unaryOps
 
-__f = a `mul` b
+__f :: ProductionRules String String -> RingParse (Symbol String String)
+__f = const a `mul` const b
   where
     (a : b : _) = opRing
 
@@ -112,34 +124,6 @@ __f = a `mul` b
 -- [[ab  ], [ ], [cd]]
 -- [[    ], [ ]]
 -- [[abcd]]
-applyBinOp :: [[Symbol String String]] -> [[Symbol String String]]
-applyBinOp syms =
+applyBinOp :: a ~ String => [[Symbol a a]] -> ProductionRules a a -> [[Symbol a a]]
+applyBinOp syms productionRules =
   zipWith (\a b -> catMaybes $ binApp <$> productionRules <*> a <*> b) syms $ tail syms
-
--- TODO: check patterns (n-1) e.g. CYK algo
--- zipWith mul opRing (tail opRing)
-
--- TODO: better way to how to construct a matrix
-__a =
-  UpperRightTriangularMatrix
-    ( UpperRightTriangularMatrix
-        (UpperRightTriangularMatrix Empty (UnitMatrix a) Empty)
-        (SquareMatrix Empty Empty (UnitMatrix b) Empty)
-        (UpperRightTriangularMatrix Empty (UnitMatrix c) Empty)
-    )
-    ( SquareMatrix
-        Empty
-        Empty
-        (SquareMatrix Empty Empty (UnitMatrix d) Empty)
-        Empty
-    )
-    ( UpperRightTriangularMatrix
-        (UpperRightTriangularMatrix Empty (UnitMatrix e) Empty)
-        (SquareMatrix Empty Empty (UnitMatrix f) Empty)
-        (UpperRightTriangularMatrix Empty (UnitMatrix g) Empty)
-    )
-  where
-    [a, b, c, d, e, f, g] = opRing
-
--- [a, b, c, d, e, f, g] = [1 .. 7]
--- a `mul` ((b `mul` (c `mul` d)) `mul` (e `mul` (f `mul` g)))

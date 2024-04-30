@@ -21,8 +21,10 @@ module SparseMatrix
 where
 
 import Data.Data
+import qualified Data.Set as S
 import Nat
 import Ring
+import RingParse
 import Vec
 
 -------------------------------- Data ------------------------------------------
@@ -299,6 +301,9 @@ mfs = constructMatrixFromShape (sq sqa sqb sqa sqb)
 data MatrixN a where
   MatrixN :: SNat n -> Matrix n a -> MatrixN a
 
+instance Functor MatrixN where
+  fmap f (MatrixN n m) = MatrixN n $ fmap f m
+
 -- instance Show a => Show (MatrixN a) where
 --   show mn = case mn of (MatrixN n m) -> show m
 
@@ -314,15 +319,15 @@ sqMatWithValInBottomLeft a (SSucc n) =
 -- (as,rest) = splitN n vec
 -- (x,bs) = splitN One rest
 -- if bs =?= as then UpperRightTriangular (recurse as) (squareMatWithElemInBottomLeftCorner x) (recurse bs)
-vecNToValiantMatrixN :: Monoid a => VecN a -> MatrixN a
-vecNToValiantMatrixN (VecN SZero VNil) = MatrixN SZero Empty
-vecNToValiantMatrixN (VecN l xs) =
+vecNToValiantMatrixN :: a -> VecN a -> MatrixN a
+vecNToValiantMatrixN e (VecN SZero VNil) = MatrixN SZero Empty
+vecNToValiantMatrixN e (VecN l xs) =
   let h = snatHalf l
-      (as, rest) = vecNSplitAt h mempty (VecN l xs)
-      (b, cs') = vecNSplitFirst rest
-      (cs, _) = vecNSplitAt h mempty cs'
-      ul = vecNToValiantMatrixN as
-      br = vecNToValiantMatrixN cs
+      (as, rest) = vecNSplitAt h e (VecN l xs)
+      (b, cs') = vecNSplitFirst e rest
+      (cs, _) = vecNSplitAt h e cs'
+      ul = vecNToValiantMatrixN e as
+      br = vecNToValiantMatrixN e cs
    in case ul of
         (MatrixN n ulm) -> case br of
           (MatrixN m brm) ->
@@ -434,3 +439,41 @@ liftMatF :: (forall n. Matrix n a -> b) -> MatrixN a -> b
 liftMatF f (MatrixN n m) = f m
 
 -- (liftMatF topRightMost') . liftV $ vecNToValiantMatrixN $ listToVecN opRing
+
+runThingy :: (Ord a, Ring (b -> RingParse a)) => b -> [RingParse a] -> Maybe (RingParse a)
+runThingy productionRules syms =
+  let ls = listToVecN $ map const syms
+      m' = vecNToValiantMatrixN (const (RingParse (S.fromList []))) ls
+   in case m' of MatrixN n m -> topRightMost' (runV m) <*> pure productionRules
+
+-- liftMatF runV m' -- <*> pure productionRules
+
+-- TODO: check patterns (n-1) e.g. CYK algo
+-- zipWith mul opRing (tail opRing)
+
+-- TODO: better way to how to construct a matrix
+__a :: Matrix ('Succ ('Succ ('Succ 'Zero))) (ProductionRules String String -> RingParse (Symbol String String))
+__a =
+  pure
+    <$> UpperRightTriangularMatrix
+      ( UpperRightTriangularMatrix
+          (UpperRightTriangularMatrix Empty (UnitMatrix a) Empty)
+          (SquareMatrix Empty Empty (UnitMatrix b) Empty)
+          (UpperRightTriangularMatrix Empty (UnitMatrix c) Empty)
+      )
+      ( SquareMatrix
+          Empty
+          Empty
+          (SquareMatrix Empty Empty (UnitMatrix d) Empty)
+          Empty
+      )
+      ( UpperRightTriangularMatrix
+          (UpperRightTriangularMatrix Empty (UnitMatrix e) Empty)
+          (SquareMatrix Empty Empty (UnitMatrix f) Empty)
+          (UpperRightTriangularMatrix Empty (UnitMatrix g) Empty)
+      )
+  where
+    [a, b, c, d, e, f, g] = opRing
+
+-- [a, b, c, d, e, f, g] = [1 .. 7]
+-- a `mul` ((b `mul` (c `mul` d)) `mul` (e `mul` (f `mul` g)))
