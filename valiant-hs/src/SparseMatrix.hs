@@ -268,6 +268,13 @@ sqMatWithValInBottomLeft a (SSucc n) =
   let m = sqMatWithValInBottomLeft a n
    in SquareMatrix Empty Empty m Empty
 
+matrixTopRightMost :: Matrix n a -> Maybe a
+matrixTopRightMost m = case m of
+  UpperRightTriangularMatrix _ a _ -> matrixTopRightMost a
+  SquareMatrix _ a _ _ -> matrixTopRightMost a
+  UnitMatrix a -> Just a
+  Empty -> Nothing
+
 class ConstructMatrix n where
   constructMatrix :: [a] -> Matrix n a
 
@@ -296,59 +303,3 @@ sqc :: Matrix ('Succ ('Succ ('Succ ('Succ 'Zero)))) Char
     sqa_ = constructMatrix "abcdefgh"
     sqb_ = constructMatrix "abcdefgh"
     sqc_ = constructMatrix "abcdefgh"
-
--- see Bernardy and Claessen, “Efficient Divide-and-Conquer Parsing of Practical Context-Free Languages.”
-class Valiant a where
-  v :: a -> a -> a -> a
-
-instance Ring a => Valiant (Matrix n a) where
-  v _ Empty _ = Empty
-  v _ (UnitMatrix a) _ = UnitMatrix a
-  v (UpperRightTriangularMatrix a11 a12 a22) (SquareMatrix x11 x12 x21 x22) (UpperRightTriangularMatrix b11 b12 b22) = SquareMatrix y11 y12 y21 y22
-    where
-      y21 = v a22 x21 b11
-      y11 = v a11 (x11 `add` (a12 `mul` y21)) b11
-      y22 = v a22 (x22 `add` (y21 `mul` b12)) b22
-      y12 = v a11 (x12 `add` (a12 `mul` y22) `add` (y11 `mul` b12)) b22
-  v _ _ _ = undefined
-
-bin :: Valiant (Matrix n a) => Matrix ('Succ n) a -> Matrix ('Succ n) a
-bin (UpperRightTriangularMatrix a t b) = UpperRightTriangularMatrix a (v a t b) b
-bin _ = undefined
-
-class (Valiant a) => RunV a where
-  runV :: a -> a
-
-instance Ring a => RunV (Matrix n a) where
-  runV (UpperRightTriangularMatrix a t b) =
-    let a' = runV a
-        t' = runV $ v a' t b'
-        b' = runV b
-     in UpperRightTriangularMatrix a' t' b'
-  runV x = x
-
-__a :: Matrix ('Succ ('Succ ('Succ 'Zero))) (ProductionRules String String -> RingParse (Symbol String String))
-__a =
-  pure
-    <$> UpperRightTriangularMatrix
-      ( UpperRightTriangularMatrix
-          (UpperRightTriangularMatrix Empty (UnitMatrix a) Empty)
-          (SquareMatrix Empty Empty (UnitMatrix b) Empty)
-          (UpperRightTriangularMatrix Empty (UnitMatrix c) Empty)
-      )
-      ( SquareMatrix
-          Empty
-          Empty
-          (SquareMatrix Empty Empty (UnitMatrix d) Empty)
-          Empty
-      )
-      ( UpperRightTriangularMatrix
-          (UpperRightTriangularMatrix Empty (UnitMatrix e) Empty)
-          (SquareMatrix Empty Empty (UnitMatrix f) Empty)
-          (UpperRightTriangularMatrix Empty (UnitMatrix g) Empty)
-      )
-  where
-    [a, b, c, d, e, f, g] = opRing
-
--- [a, b, c, d, e, f, g] = [1 .. 7]
--- a `mul` ((b `mul` (c `mul` d)) `mul` (e `mul` (f `mul` g)))

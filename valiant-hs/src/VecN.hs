@@ -1,4 +1,7 @@
 {-# LANGUAGE GADTs #-}
+{-# LANGUAGE RankNTypes #-}
+{-# LANGUAGE ScopedTypeVariables #-}
+{-# LANGUAGE TypeOperators #-}
 
 module VecN where
 
@@ -31,6 +34,10 @@ listToVecN (x : xs) = case listToVecN xs of VecN sn vs -> VecN (SSucc sn) (VCons
 
 vecNCons :: a -> VecN a -> VecN a
 vecNCons x (VecN _ xs) = VecN snat $ VCons x xs
+
+vecSplitFirst :: a -> Vec n a -> (a, Vec (n - One) a)
+vecSplitFirst e VNil = (e, VNil)
+vecSplitFirst _ (VCons x xs) = (x, xs)
 
 vecNSplitFirst :: a -> VecN a -> (a, VecN a)
 vecNSplitFirst _ (VecN _ (VCons x xs)) = (x, VecN snat xs)

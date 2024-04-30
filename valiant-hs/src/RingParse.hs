@@ -53,7 +53,7 @@ liftRPF f (RingParse as) (RingParse bs) = RingParse $ f as bs
 instance Ord a => Semigroup (RingParse a) where
   (<>) (RingParse as) (RingParse bs) = RingParse $ as <> bs
 
-instance (Monoid a, Ord a) => Monoid (RingParse a) where
+instance Ord a => Monoid (RingParse a) where
   mempty = RingParse mempty
 
 instance (Show a) => Show (RingParse a) where

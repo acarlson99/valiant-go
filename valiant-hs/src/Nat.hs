@@ -120,6 +120,11 @@ snatHalf (SSucc (SSucc n)) = SSucc (snatHalf n)
 snatHalf (SSucc SZero) = SZero
 snatHalf SZero = SZero
 
+snatSub :: SNat a -> SNat b -> SNat (a - b)
+snatSub SZero _ = SZero
+snatSub a SZero = a
+snatSub (SSucc a) (SSucc b) = snatSub a b
+
 type One = 'Succ 'Zero
 
 type Two = One + One

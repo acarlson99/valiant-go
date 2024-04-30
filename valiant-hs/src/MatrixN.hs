@@ -46,32 +46,14 @@ vecNToValiantMatrixN e (VecN l xs) =
                 MatrixN (SSucc n) $ UpperRightTriangularMatrix ulm (sqMatWithValInBottomLeft b n) brm
               Nothing -> error "Recursing did not go well-- this should never happen"
 
-topRightMost :: MatrixN a -> Maybe a
-topRightMost (MatrixN (SSucc n) m) = case m of
-  UpperRightTriangularMatrix _ a _ -> topRightMost $ MatrixN n a
-  SquareMatrix _ a _ _ -> topRightMost $ MatrixN n a
+matrixNTopRightMost :: MatrixN a -> Maybe a
+matrixNTopRightMost (MatrixN (SSucc n) m) = case m of
+  UpperRightTriangularMatrix _ a _ -> matrixNTopRightMost $ MatrixN n a
+  SquareMatrix _ a _ _ -> matrixNTopRightMost $ MatrixN n a
   Empty -> Nothing
-topRightMost (MatrixN SZero m) = case m of
-  UnitMatrix a -> Just a
-  Empty -> Nothing
-
-liftV :: Ring a => MatrixN a -> MatrixN a
-liftV (MatrixN n m) = MatrixN n $ runV m
-
-topRightMost' :: Matrix n a -> Maybe a
-topRightMost' m = case m of
-  UpperRightTriangularMatrix _ a _ -> topRightMost' a
-  SquareMatrix _ a _ _ -> topRightMost' a
+matrixNTopRightMost (MatrixN SZero m) = case m of
   UnitMatrix a -> Just a
   Empty -> Nothing
 
 liftMatF :: (forall n. Matrix n a -> b) -> MatrixN a -> b
 liftMatF f (MatrixN _ m) = f m
-
--- (liftMatF topRightMost') . liftV $ vecNToValiantMatrixN $ listToVecN opRing
-
-runThingy :: (Ord a, Ring (b -> RingParse a)) => b -> [RingParse a] -> Maybe (RingParse a)
-runThingy productionRules syms =
-  let ls = listToVecN $ map const syms
-      m' = vecNToValiantMatrixN (const (RingParse (S.fromList []))) ls
-   in case m' of MatrixN _ m -> topRightMost' (runV m) <*> pure productionRules
