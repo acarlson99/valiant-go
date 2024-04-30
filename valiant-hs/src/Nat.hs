@@ -17,53 +17,6 @@ import Data.Type.Equality
 --            https://richarde.dev/papers/2018/stitch/stitch.pdf
 data Nat = Zero | Succ Nat deriving (Eq)
 
-proof :: Succ Zero + Succ Zero :~: Succ (Succ Zero + Zero)
-proof = Refl
-
-plusLeftId :: SNat a -> (Zero + a) :~: a
-plusLeftId SZero = Refl
-plusLeftId (SSucc n) = gcastWith (plusLeftId n) Refl
-
-plusRightId :: SNat a -> (a + Zero) :~: a
-plusRightId SZero = Refl
-plusRightId (SSucc n) = gcastWith (plusRightId n) Refl
-
-given1 :: SNat a -> (a + Zero) :~: a
-given1 _ = Refl
-
-given2 :: SNat a -> SNat b -> (a + Succ b) :~: Succ (a + b)
-given2 _ _ = Refl
-
--- given2Refl :: SNat a -> SNat b -> Succ (a + b) :~: (Succ a + b)
--- given2Refl a SZero = Refl
--- given2Refl a (Succ b) =
---   let step1 :: SNat a -> SNat b -> Succ (a + b) :~: (Succ a + b)
---       step1 a b = given2Refl a b
---    in gcastWith (given2Refl a b) Refl
-
-(!+) :: SNat n -> SNat m -> SNat (n + m)
-n !+ SZero = n
-n !+ (SSucc m) = SSucc (n !+ m)
-
-(==>) :: a :~: b -> b :~: c -> a :~: c
-Refl ==> Refl = Refl
-
-plusAssoc :: SNat a -> SNat b -> SNat c -> ((a + b) + c) :~: (a + (b + c))
-plusAssoc a b SZero = Refl
-plusAssoc a b (SSucc c) = gcastWith (plusAssoc a b c) Refl
-
--- plusComm :: SNat a -> SNat b -> (a + b) :~: (b + a)
--- plusComm a SZero =
---   let step1 :: SNat a -> (a + Zero) :~: (Zero + a)
---       step1 a = gcastWith (plusLeftId a) Refl
---    in gcastWith (step1 a) Refl
--- plusComm a (SSucc b) =
---   let step1 :: SNat a -> SNat b -> Succ (a + b) :~: (a + Succ b)
---       step1 a b = gcastWith (plusAssoc a b (SSucc SZero)) Refl
---       step2 :: SNat a -> SNat b -> 'Succ (a + b) :~: 'Succ (b + a)
---       step2 a b = gcastWith (step1 a b) Refl -- this is no good
---    in gcastWith (step1 a b) Refl
-
 instance Show Nat where
   show nat = show $ f nat
     where
@@ -77,8 +30,8 @@ type family a + b where
 
 type family (a :: Nat) - (b :: Nat) where
   m - 'Zero = m
-  ('Succ n) - (Succ m) = (n - m)
-  'Zero - m = Zero -- no negatives
+  ('Succ n) - ('Succ m) = (n - m)
+  'Zero - m = 'Zero -- no negatives
 
 type family Min a b where
   Min m 'Zero = 'Zero

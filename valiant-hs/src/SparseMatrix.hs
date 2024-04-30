@@ -12,13 +12,7 @@
 {-# LANGUAGE TypeOperators #-}
 {-# LANGUAGE UndecidableInstances #-}
 
-module SparseMatrix
-  ( module SparseMatrix,
-    module Nat,
-    module Ring,
-    module Vec,
-  )
-where
+module SparseMatrix where
 
 import Data.Data
 import qualified Data.Set as S
@@ -39,8 +33,8 @@ type UTrShape s u = (s,u
 {- ORMOLU_ENABLE -}
 
 type family NDepthSq n a where
-  NDepthSq (Succ n) a = SqShape (NDepthSq n a)
-  NDepthSq Zero a = SqShape a
+  NDepthSq ('Succ n) a = SqShape (NDepthSq n a)
+  NDepthSq 'Zero a = SqShape a
 
 type family SqDepth a :: Nat where
   SqDepth ((a, b), (c, d)) = 'Succ (SqDepth a)
@@ -125,8 +119,8 @@ instance Ring a => Ring (Matrix n a) where
   add (UpperRightTriangularMatrix a b d) (UpperRightTriangularMatrix e f h) = UpperRightTriangularMatrix (add a e) (add b f) (add d h)
   add (SquareMatrix a b c d) (UpperRightTriangularMatrix e f h) = add (SquareMatrix a b c d) (SquareMatrix e f Empty h)
   add (UpperRightTriangularMatrix a b d) (SquareMatrix e f g h) = add (SquareMatrix a b Empty d) (SquareMatrix e f g h)
-  mul Empty y = Empty
-  mul x Empty = Empty
+  mul Empty _ = Empty
+  mul _ Empty = Empty
   mul (UnitMatrix a) (UnitMatrix b) = UnitMatrix (mul a b)
   mul x y = mulSM x y
 
@@ -240,7 +234,7 @@ gradeDown = const Empty
 instance (Size n) => Size ('Succ n) where
   size m = 2 * size (gradeDown m)
 
----------------------------- Constructors --------------------------------------
+------------------------ Matrix Constructors -----------------------------------
 
 nextClosestSquare :: (Ord a, Num a) => a -> a
 nextClosestSquare n =
@@ -250,32 +244,9 @@ lastClosestSquare :: (Ord a, Num a) => a -> a
 lastClosestSquare n =
   last . (0 :) $ takeWhile (< n) [2 ^ x | x <- ([0 ..] :: [Int])]
 
--- newUpperRightTriangularMatrix :: Show m => Int -> Matrix n m
--- newUpperRightTriangularMatrix n
---   | nsq < 2 = Empty 0
---   | nsq == 2 = UpperRightTriangularMatrix (Empty smsq) (Empty smsq) (Empty smsq)
---   | otherwise = UpperRightTriangularMatrix smallT smallSQ smallT
---   where
---     smallT = newUpperRightTriangularMatrix (float2Int (int2Float n / 2.0))
---     smallSQ = newSquareMatrix (float2Int (int2Float n / 2.0))
---     smsq = float2Int (int2Float nsq / 2.0)
---     nsq = nextClosestSquare n
-
 u2s :: Matrix n m -> Matrix n m
 u2s (UpperRightTriangularMatrix a b d) = SquareMatrix a b Empty d
 u2s _ = undefined
-
--- u2s (UpperRightTriangularMatrix a b d) = SquareMatrix a b (Empty $ size a) d
-
--- newSquareMatrix :: Int -> Matrix n m
--- newSquareMatrix n
---   | nsq < 2 = Empty 0
---   | nsq == 2 = SquareMatrix (Empty smsq) (Empty smsq) (Empty smsq) (Empty smsq)
---   | otherwise = newSquareMatrix_ smallM
---   where
---     nsq = nextClosestSquare n
---     smsq = float2Int (int2Float nsq / 2.0)
---     smallM = newSquareMatrix smsq
 
 newSquareMatrix_ :: Matrix n m -> Matrix ('Succ n) m
 newSquareMatrix_ m = SquareMatrix m m m m
@@ -289,73 +260,13 @@ instance {-# OVERLAPPABLE #-} (SqDepth a ~ 'Zero, BaseType a ~ a) => ConstructMa
 instance {-# OVERLAPPING #-} ConstructMatrixFromShape a => ConstructMatrixFromShape (SqShape a) where
   constructMatrixFromShape ((a, b), (c, d)) = SquareMatrix (constructMatrixFromShape a) (constructMatrixFromShape b) (constructMatrixFromShape c) (constructMatrixFromShape d)
 
-mfs = constructMatrixFromShape (sq sqa sqb sqa sqb)
-  where
-    sq :: a -> a -> a -> a -> SqShape a
-    sq a b c d = ((a, b), (c, d))
-    sqa = sq (1 :: Int) 2 3 4
-    sqb = sq 5 6 7 8
-
 ------------------------------- Algorithm --------------------------------------
-
-data MatrixN a where
-  MatrixN :: SNat n -> Matrix n a -> MatrixN a
-
-instance Functor MatrixN where
-  fmap f (MatrixN n m) = MatrixN n $ fmap f m
-
--- instance Show a => Show (MatrixN a) where
---   show mn = case mn of (MatrixN n m) -> show m
 
 sqMatWithValInBottomLeft :: a -> SNat n -> Matrix n a
 sqMatWithValInBottomLeft a SZero = UnitMatrix a
 sqMatWithValInBottomLeft a (SSucc n) =
   let m = sqMatWithValInBottomLeft a n
    in SquareMatrix Empty Empty m Empty
-
--- TODO: this should split a matrix like so:
--- because `n` is always odd
--- n = (length(vec)-1) / 2
--- (as,rest) = splitN n vec
--- (x,bs) = splitN One rest
--- if bs =?= as then UpperRightTriangular (recurse as) (squareMatWithElemInBottomLeftCorner x) (recurse bs)
-vecNToValiantMatrixN :: a -> VecN a -> MatrixN a
-vecNToValiantMatrixN e (VecN SZero VNil) = MatrixN SZero Empty
-vecNToValiantMatrixN e (VecN l xs) =
-  let h = snatHalf l
-      (as, rest) = vecNSplitAt h e (VecN l xs)
-      (b, cs') = vecNSplitFirst e rest
-      (cs, _) = vecNSplitAt h e cs'
-      ul = vecNToValiantMatrixN e as
-      br = vecNToValiantMatrixN e cs
-   in case ul of
-        (MatrixN n ulm) -> case br of
-          (MatrixN m brm) ->
-            case n =?= m of
-              Just Refl ->
-                MatrixN (SSucc n) $ UpperRightTriangularMatrix ulm (sqMatWithValInBottomLeft b n) brm
-              Nothing -> error "Recursing did not go well-- this should never happen"
-
--- case (vecNToValiantMatrixN $ listToVecN [1,2,3,4,5,6,7]) of (MatrixN n m) -> foldrExpandEmpty (:) [] m
-
--- class ConstructSqShape a b where
---   constructSqShape :: a -> b
-
--- instance ConstructSqShape String (SqShape a) where
---   constructSqShape s =
---     if length a > 1
---       then ((constructSqShape a, constructSqShape b), (constructSqShape c, constructSqShape d))
---       else ((a, b), (c, d))
---     where
---       (a, b, c, d) = splitSqStr s
-
-splitSqStr s = (a, b, c, d)
-  where
-    l = nextClosestSquare $ length s
-    n = l `div` 2 `div` 2
-    f (_, b) = splitAt n b
-    m = iterate f
-    [a, b, c, d] = take 4 . map fst . drop 1 $ m (mempty, s)
 
 class ConstructMatrix n where
   constructMatrix :: [a] -> Matrix n a
@@ -416,42 +327,6 @@ instance Ring a => RunV (Matrix n a) where
      in UpperRightTriangularMatrix a' t' b'
   runV x = x
 
-topRightMost :: MatrixN a -> Maybe a
-topRightMost (MatrixN (SSucc n) m) = case m of
-  UpperRightTriangularMatrix _ a _ -> topRightMost $ MatrixN n a
-  SquareMatrix _ a _ _ -> topRightMost $ MatrixN n a
-  Empty -> Nothing
-topRightMost (MatrixN SZero m) = case m of
-  UnitMatrix a -> Just a
-  Empty -> Nothing
-
-liftV :: Ring a => MatrixN a -> MatrixN a
-liftV (MatrixN n m) = MatrixN n $ runV m
-
-topRightMost' :: Matrix n a -> Maybe a
-topRightMost' m = case m of
-  UpperRightTriangularMatrix _ a _ -> topRightMost' a
-  SquareMatrix _ a _ _ -> topRightMost' a
-  UnitMatrix a -> Just a
-  Empty -> Nothing
-
-liftMatF :: (forall n. Matrix n a -> b) -> MatrixN a -> b
-liftMatF f (MatrixN n m) = f m
-
--- (liftMatF topRightMost') . liftV $ vecNToValiantMatrixN $ listToVecN opRing
-
-runThingy :: (Ord a, Ring (b -> RingParse a)) => b -> [RingParse a] -> Maybe (RingParse a)
-runThingy productionRules syms =
-  let ls = listToVecN $ map const syms
-      m' = vecNToValiantMatrixN (const (RingParse (S.fromList []))) ls
-   in case m' of MatrixN n m -> topRightMost' (runV m) <*> pure productionRules
-
--- liftMatF runV m' -- <*> pure productionRules
-
--- TODO: check patterns (n-1) e.g. CYK algo
--- zipWith mul opRing (tail opRing)
-
--- TODO: better way to how to construct a matrix
 __a :: Matrix ('Succ ('Succ ('Succ 'Zero))) (ProductionRules String String -> RingParse (Symbol String String))
 __a =
   pure

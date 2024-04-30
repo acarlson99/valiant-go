@@ -8,11 +8,9 @@
 
 module RingParse where
 
-import Control.Applicative
 import Data.Maybe (catMaybes)
 import qualified Data.Set as S
 import Ring
-import Vec
 
 data Symbol nt t = Nonterminal nt | Terminal t
   deriving (Ord, Eq)
@@ -28,11 +26,11 @@ data ProductionRule nt t where
 type ProductionRules nt t = [ProductionRule nt t]
 
 instance (Show t, Show nt) => Show (ProductionRule nt t) where
-  show rule = show n ++ " -> " ++ concatMap show s
+  show rule = show s ++ " -> " ++ concatMap show ss
     where
-      s :: [Symbol nt t]
-      n :: Symbol nt t
-      (n, s) = case rule of
+      ss :: [Symbol nt t]
+      s :: Symbol nt t
+      (s, ss) = case rule of
         (Unary n a) -> (Nonterminal n, [a])
         (Binary n a b) -> (Nonterminal n, [a, b])
 
@@ -49,18 +47,10 @@ newtype RingParse a = RingParse {getSyms :: S.Set a}
 instance Eq a => Eq (RingParse a) where
   a == b = getSyms a == getSyms b
 
--- instance Functor RingParse where
---   fmap f = RingParse . S.fromList . fmap f . S.toList . getSyms
-
--- instance Applicative RingParse where
---   pure = RingParse . S.fromList . pure
---   (<*>) (RingParse fs) (RingParse v) = RingParse $ fs <*> v
-
 liftRPF :: (S.Set a -> S.Set b -> S.Set c) -> RingParse a -> RingParse b -> RingParse c
 liftRPF f (RingParse as) (RingParse bs) = RingParse $ f as bs
 
 instance Ord a => Semigroup (RingParse a) where
-  -- (<>) = liftA2 (<>)
   (<>) (RingParse as) (RingParse bs) = RingParse $ as <> bs
 
 instance (Monoid a, Ord a) => Monoid (RingParse a) where

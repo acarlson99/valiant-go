@@ -21,11 +21,11 @@ data Vec :: Nat -> * -> * where
   VCons :: SNatl n => a -> Vec n a -> Vec ('Succ n) a
 
 instance Functor (Vec n) where
-  fmap f VNil = VNil
+  fmap _ VNil = VNil
   fmap f (VCons x xs) = VCons (f x) $ fmap f xs
 
 instance Applicative (Vec 'Zero) where
-  pure a = VNil
+  pure _ = VNil
   (<*>) _ _ = VNil
 
 instance (SNatl n, Applicative (Vec n)) => Applicative (Vec ('Succ n)) where
@@ -51,22 +51,12 @@ instance Foldable (Vec n) where
   foldr f acc (VCons a bs) = f a $ foldr f acc bs
   foldr _ acc VNil = acc
 
-class SNatl n => VecAppend n where
-  vecAppend :: a -> Vec n a -> Vec (Succ n) a
+class VecAppend n where
+  vecAppend :: a -> Vec n a -> Vec ('Succ n) a
 
-instance VecAppend Zero where
+instance VecAppend n where
   vecAppend a VNil = VCons a VNil
-
-instance VecAppend n => VecAppend (Succ n) where
   vecAppend a (VCons b bs) = case vecAppend a bs of (VCons c cs) -> VCons b (VCons c cs)
-
-vecNAppend :: a -> VecN a -> VecN a
-vecNAppend a (VecN n v) = case n of
-  SZero -> VecN (SSucc n) $ VCons a VNil
-  SSucc _ ->
-    case v of
-      (VCons b bs) -> case vecNAppend a (VecN snat bs) of
-        (VecN n2 xs) -> VecN (SSucc n2) $ VCons b xs
 
 instance NatTypeToVal (Vec 'Zero a) where
   natTypeToVal = const Zero
@@ -75,44 +65,13 @@ instance NatTypeToVal (Vec n a) => NatTypeToVal (Vec ('Succ n) a) where
   natTypeToVal :: Vec ('Succ n) a -> Nat
   natTypeToVal (VCons _ xs) = Succ $ natTypeToVal xs
 
-data VecN a where
-  VecN :: SNatl n => SNat n -> Vec n a -> VecN a
-
--- TODO: this-- prove to the compiler that n+m is good
-vconcat :: Vec n a -> Vec m a -> Vec (m + n) a
-vconcat VNil ys = ys
-vconcat (VCons x xs) ys = undefined -- VCons x $ vecAppend xs ys
-
-instance Semigroup (VecN a) where
-  (<>) (VecN n x) (VecN m y) = undefined -- VecN snat $ x `vconcat` y
-
-instance Monoid (VecN a) where
-  mempty = VecN snat VNil
-
--- instance Functor VecN where
---   fmap f (VecN n v) = VecN n $ fmap f v
-
--- instance Applicative VecN where
---   -- pure a = VecN snat $ pure a
---   pure a = undefined
---   (<*>) (VecN nf fs) (VecN nx xs) = VecN snat $ fs <*> xs
-
-listToVecN :: [a] -> VecN a
-listToVecN [] = VecN SZero VNil
-listToVecN (x : xs) = case listToVecN xs of VecN sn vs -> VecN (SSucc sn) (VCons x vs)
-
-instance Show n => Show (VecN n) where
-  show (VecN sn v) = show v ++ " l=" ++ show sn
-
--- TODO: use VecN type
--- TODO: use vecsplitat to construct 4x4 mat
 class VecSplitAt (n :: Nat) where
   vecSplitAt :: (SNatl n, SNatl m) => SNat n -> a -> Vec (m :: Nat) a -> (Vec n a, Vec (m - n) a)
 
-instance VecSplitAt Zero where
+instance VecSplitAt 'Zero where
   vecSplitAt SZero _ v = (VNil, v)
 
-instance (VecSplitAt n, SNatl n) => VecSplitAt (Succ n) where
+instance (VecSplitAt n, SNatl n) => VecSplitAt ('Succ n) where
   vecSplitAt (SSucc n) df (VCons v vs) = (VCons v a, rest)
     where
       (a, rest) = vecSplitAt n df vs
@@ -120,31 +79,14 @@ instance (VecSplitAt n, SNatl n) => VecSplitAt (Succ n) where
     where
       (a, rest) = vecSplitAt n df VNil
 
-vecNCons x (VecN _ xs) = VecN snat $ VCons x xs
-
-vecNSplitFirst :: a -> VecN a -> (a, VecN a)
-vecNSplitFirst e (VecN _ (VCons x xs)) = (x, VecN snat xs)
-vecNSplitFirst e vs = (e, vs)
-
-vecNSplitAt :: SNat n -> a -> VecN a -> (VecN a, VecN a)
-vecNSplitAt SZero df v = (VecN snat VNil, v)
-vecNSplitAt (SSucc n) df (VecN l (VCons x xs)) =
-  let (a, rest) = vecNSplitAt n df $ VecN snat xs
-   in (vecNCons x a, rest)
-vecNSplitAt (SSucc n) df (VecN SZero VNil) =
-  let (a, rest) = vecNSplitAt n df $ VecN snat VNil
-   in (vecNCons df a, rest)
-
--- vecSplitAt :: (SNatl n, SNatl m, SNatl (m - n)) => SNat n -> a -> Vec (m :: Nat) a -> (Vec n a, Vec (m - n) a)
--- vecSplitAt SZero _ v = (VNil, v)
--- vecSplitAt (SSucc n) df VNil = (VCons df a, rest)
---   where
---     (a, rest) = vecSplitAt n df VNil
--- vecSplitAt _ _ _ = undefined
-
 instance SNatEq (Vec n a) (Vec m a) where
   VNil =?= VNil = Just Refl
-  (VCons a as) =?= (VCons b bs) = case as =?= bs of
+  (VCons _ as) =?= (VCons _ bs) = case as =?= bs of
     Nothing -> Nothing
     Just Refl -> Just Refl
   _ =?= _ = Nothing
+
+-- -- TODO: this-- prove to the compiler that n+m is good
+-- vconcat :: Vec n a -> Vec m a -> Vec (m + n) a
+-- vconcat VNil ys = ys
+-- vconcat (VCons x xs) ys = VCons x $ vecAppend xs ys
