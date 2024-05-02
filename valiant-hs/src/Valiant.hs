@@ -10,6 +10,8 @@ import Nat
 import Ring
 import RingParse
 import SparseMatrix
+import qualified SparseMatrix as M
+import qualified Tree as T
 import VecN
 
 -- see Bernardy and Claessen, “Efficient Divide-and-Conquer Parsing of Practical Context-Free Languages.”
@@ -76,3 +78,18 @@ runThingy productionRules syms =
   let ls = listToVecN $ map const syms
       m' = vecNToValiantMatrixN mempty ls
    in case m' of MatrixN _ m -> matrixTopRightMost (runV m) <*> pure productionRules
+
+-- sequenceTreeMat :: M.Matrix n (T.Tree (a -> b)) -> a -> M.Matrix n (T.Tree b)
+sequenceTreeMat :: (Functor f1, Functor f2) => f1 (f2 (a -> b)) -> a -> f1 (f2 b)
+sequenceTreeMat b a = fmap (fmap ($ a)) b
+
+symToTree :: Symbol nt t -> T.Tree (Either nt t)
+symToTree (Nonterminal x' xs) =
+  let x = Left x'
+   in case xs of
+        [a, b] -> T.Node x (symToTree a) (symToTree b)
+        [a] -> T.Node x (symToTree a) T.Empty
+        _ -> T.Node x T.Empty T.Empty
+symToTree (Terminal x) = T.Node (Right x) T.Empty T.Empty
+
+-- Just t = symToTree . head . S.toList . getSyms <$> (matrixTopRightMost . fmap ($ productionRules) $ runV __a)

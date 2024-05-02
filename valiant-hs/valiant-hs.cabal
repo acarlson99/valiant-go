@@ -66,6 +66,7 @@ library
     Ring
     RingParse
     SparseMatrix
+    Tree
     Valiant
     Vec
     VecN

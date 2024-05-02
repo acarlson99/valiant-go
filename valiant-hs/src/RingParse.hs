@@ -12,11 +12,18 @@ import Data.Maybe (catMaybes)
 import qualified Data.Set as S
 import Ring
 
-data Symbol nt t = Nonterminal nt | Terminal t
-  deriving (Ord, Eq)
+data Symbol nt t = Nonterminal nt [Symbol nt t] | Terminal t
+  deriving (Eq, Ord)
+
+symNameEq (Nonterminal a _) (Nonterminal b _) = a == b
+symNameEq (Terminal a) (Terminal b) = a == b
+symNameEq _ _ = False
+
+symChildren (Nonterminal _ xs) = xs
+symChildren _ = []
 
 instance (Show t, Show nt) => Show (Symbol nt t) where
-  show (Nonterminal n) = '/' : show n ++ "/"
+  show (Nonterminal n _) = '/' : show n ++ "/"
   show (Terminal a) = '\'' : show a
 
 data ProductionRule nt t where
@@ -31,15 +38,15 @@ instance (Show t, Show nt) => Show (ProductionRule nt t) where
       ss :: [Symbol nt t]
       s :: Symbol nt t
       (s, ss) = case rule of
-        (Unary n a) -> (Nonterminal n, [a])
-        (Binary n a b) -> (Nonterminal n, [a, b])
+        (Unary n a) -> (Nonterminal n [], [a])
+        (Binary n a b) -> (Nonterminal n [], [a, b])
 
 binApp :: (Eq nt, Eq t) => ProductionRule nt t -> Symbol nt t -> Symbol nt t -> Maybe (Symbol nt t)
-binApp (Binary n a b) x y = if x == a && b == y then return $ Nonterminal n else Nothing
+binApp (Binary n a b) x y = if x `symNameEq` a && b `symNameEq` y then return $ Nonterminal n [x, y] else Nothing
 binApp Unary {} _ _ = Nothing
 
 unaryApp :: (Eq nt, Eq t) => ProductionRule nt t -> Symbol nt t -> Maybe (Symbol nt t)
-unaryApp (Unary n a) x = if x == a then return $ Nonterminal n else Nothing
+unaryApp (Unary n a) x = if x `symNameEq` a then return $ Nonterminal n [x] else Nothing
 unaryApp Binary {} _ = Nothing
 
 newtype RingParse a = RingParse {getSyms :: S.Set a}
@@ -61,12 +68,12 @@ instance (Show a) => Show (RingParse a) where
 
 productionRules :: ProductionRules String String
 productionRules =
-  [ Binary "S" (Nonterminal "NP") (Nonterminal "VP"),
-    Binary "VP" (Nonterminal "VP") (Nonterminal "PP"),
-    Binary "VP" (Nonterminal "V") (Nonterminal "NP"),
+  [ Binary "S" (Nonterminal "NP" []) (Nonterminal "VP" []),
+    Binary "VP" (Nonterminal "VP" []) (Nonterminal "PP" []),
+    Binary "VP" (Nonterminal "V" []) (Nonterminal "NP" []),
     Unary "VP" (Terminal "eats"),
-    Binary "PP" (Nonterminal "P") (Nonterminal "NP"),
-    Binary "NP" (Nonterminal "Det") (Nonterminal "N"),
+    Binary "PP" (Nonterminal "P" []) (Nonterminal "NP" []),
+    Binary "NP" (Nonterminal "Det" []) (Nonterminal "N" []),
     Unary "NP" (Terminal "she"),
     Unary "V" (Terminal "eats"),
     Unary "P" (Terminal "with"),
