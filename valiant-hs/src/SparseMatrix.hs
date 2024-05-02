@@ -255,7 +255,7 @@ class ConstructMatrixFromShape a where
   constructMatrixFromShape :: a -> Matrix (SqDepth a) (BaseType a)
 
 instance {-# OVERLAPPABLE #-} (SqDepth a ~ 'Zero, BaseType a ~ a) => ConstructMatrixFromShape a where
-  constructMatrixFromShape a = UnitMatrix a
+  constructMatrixFromShape = UnitMatrix
 
 instance {-# OVERLAPPING #-} ConstructMatrixFromShape a => ConstructMatrixFromShape (SqShape a) where
   constructMatrixFromShape ((a, b), (c, d)) = SquareMatrix (constructMatrixFromShape a) (constructMatrixFromShape b) (constructMatrixFromShape c) (constructMatrixFromShape d)
