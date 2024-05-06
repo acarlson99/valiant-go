@@ -12,6 +12,7 @@ import Data.Maybe (catMaybes)
 import qualified Data.Set as S
 import Ring
 
+--                             A -> BC          | "fish"
 data Symbol nt t = Nonterminal nt [Symbol nt t] | Terminal t
   deriving (Eq, Ord)
 
