@@ -93,3 +93,8 @@ symToTree (Nonterminal x' xs) =
 symToTree (Terminal x) = T.Node (Right x) T.Empty T.Empty
 
 -- Just t = symToTree . head . S.toList . getSyms <$> (matrixTopRightMost . fmap ($ productionRules) $ runV __a)
+
+-- topLevelParse :: (a ~ String, Ord a) => ProductionRules a a -> [a]  -> Maybe (T.Tree (Either a a))
+-- topLevelParse prs as =
+--   let mat = pure <$> vecNToValiantMatrixN $ listToVecN as 
+--    in symToTree . head . S.toList . getSyms <$> (matrixTopRightMost . fmap ($ productionRules) $ runV mat)
