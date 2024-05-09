@@ -4,21 +4,21 @@
 
 module Valiant where
 
-import qualified Data.Set as S
+import Data.Set qualified as S
 import MatrixN
 import Nat
 import Ring
 import RingParse
 import SparseMatrix
-import qualified SparseMatrix as M
-import qualified Tree as T
+import SparseMatrix qualified as M
+import Tree qualified as T
 import VecN
 
 -- see Bernardy and Claessen, “Efficient Divide-and-Conquer Parsing of Practical Context-Free Languages.”
 class Valiant a where
   v :: a -> a -> a -> a
 
-instance Ring a => Valiant (Matrix n a) where
+instance (Ring a) => Valiant (Matrix n a) where
   v _ Empty _ = Empty
   v _ (UnitMatrix a) _ = UnitMatrix a
   v (UpperRightTriangularMatrix a11 a12 a22) (SquareMatrix x11 x12 x21 x22) (UpperRightTriangularMatrix b11 b12 b22) = SquareMatrix y11 y12 y21 y22
@@ -29,14 +29,14 @@ instance Ring a => Valiant (Matrix n a) where
       y12 = v a11 (x12 `add` (a12 `mul` y22) `add` (y11 `mul` b12)) b22
   v _ _ _ = undefined
 
-bin :: Valiant (Matrix n a) => Matrix ('Succ n) a -> Matrix ('Succ n) a
+bin :: (Valiant (Matrix n a)) => Matrix ('Succ n) a -> Matrix ('Succ n) a
 bin (UpperRightTriangularMatrix a t b) = UpperRightTriangularMatrix a (v a t b) b
 bin _ = undefined
 
 class (Valiant a) => RunV a where
   runV :: a -> a
 
-instance Ring a => RunV (Matrix n a) where
+instance (Ring a) => RunV (Matrix n a) where
   runV (UpperRightTriangularMatrix a t b) =
     let a' = runV a
         t' = runV $ v a' t b'
@@ -70,7 +70,7 @@ __a =
 -- [a, b, c, d, e, f, g] = [1 .. 7]
 -- a `mul` ((b `mul` (c `mul` d)) `mul` (e `mul` (f `mul` g)))
 
-liftV :: Ring a => MatrixN a -> MatrixN a
+liftV :: (Ring a) => MatrixN a -> MatrixN a
 liftV (MatrixN n m) = MatrixN n $ runV m
 
 runThingy :: (Ord a, Ring (b -> RingParse a)) => b -> [RingParse a] -> Maybe (RingParse a)
@@ -96,5 +96,5 @@ symToTree (Terminal x) = T.Node (Right x) T.Empty T.Empty
 
 -- topLevelParse :: (a ~ String, Ord a) => ProductionRules a a -> [a]  -> Maybe (T.Tree (Either a a))
 -- topLevelParse prs as =
---   let mat = pure <$> vecNToValiantMatrixN $ listToVecN as 
+--   let mat = pure <$> vecNToValiantMatrixN $ listToVecN as
 --    in symToTree . head . S.toList . getSyms <$> (matrixTopRightMost . fmap ($ productionRules) $ runV mat)

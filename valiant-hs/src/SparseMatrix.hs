@@ -15,7 +15,7 @@
 module SparseMatrix where
 
 import Data.Data
-import qualified Data.Set as S
+import Data.Set qualified as S
 import Nat
 import Ring
 import RingParse
@@ -57,13 +57,13 @@ class IsZeroType n where
 instance IsZeroType 'Zero where
   isZeroType _ = True
 
-instance IsZeroType n => IsZeroType ('Succ n) where
+instance (IsZeroType n) => IsZeroType ('Succ n) where
   isZeroType _ = False
 
 instance NatTypeToVal (Matrix 'Zero a) where
   natTypeToVal = const Zero
 
-instance NatTypeToVal (Matrix n a) => NatTypeToVal (Matrix ('Succ n) a) where
+instance (NatTypeToVal (Matrix n a)) => NatTypeToVal (Matrix ('Succ n) a) where
   natTypeToVal = Succ . natTypeToVal . gradeDown
 
 -- Test stuff
@@ -81,11 +81,11 @@ sq1 n = a
 ut1 n = UpperRightTriangularMatrix u u u where u = UnitMatrix n
 {- ORMOLU_ENABLE -}
 
-sq2, ut2 :: Num a => a -> Matrix Two a
+sq2, ut2 :: (Num a) => a -> Matrix Two a
 sq2 n = SquareMatrix a (subtract 1 <$> a) a (subtract 1 <$> a) where a = sq1 n
 ut2 n = UpperRightTriangularMatrix t a t where t = ut1 n; a = sq1 n
 
-sq3, ut3 :: Num a => a -> Matrix Three a
+sq3, ut3 :: (Num a) => a -> Matrix Three a
 sq3 n = SquareMatrix s Empty s s where s = sq2 n
 ut3 n = UpperRightTriangularMatrix t2 s t2 where t2 = ut2 n; s = sq2 n
 
@@ -98,7 +98,7 @@ instance Foldable (Matrix n) where
   foldr f acc (UnitMatrix a) = f a acc
   foldr _ acc Empty = acc
 
-foldrExpandEmpty :: Monoid a => (a -> b -> b) -> b -> Matrix n a -> b
+foldrExpandEmpty :: (Monoid a) => (a -> b -> b) -> b -> Matrix n a -> b
 foldrExpandEmpty f acc (SquareMatrix a b c d) = foldr (flip $ foldrExpandEmpty f) acc [a, b, c, d]
 foldrExpandEmpty f acc (UpperRightTriangularMatrix a b d) = foldrExpandEmpty f acc (SquareMatrix a b Empty d)
 foldrExpandEmpty f acc (UnitMatrix a) = f a acc
@@ -110,7 +110,7 @@ instance Functor (Matrix n) where
   fmap f (UnitMatrix a) = UnitMatrix (f a)
   fmap _ Empty = Empty
 
-instance Ring a => Ring (Matrix n a) where
+instance (Ring a) => Ring (Matrix n a) where
   zero = Empty
   add Empty y = y
   add x Empty = x
@@ -125,7 +125,7 @@ instance Ring a => Ring (Matrix n a) where
   mul x y = mulSM x y
 
 -- see Bernardy and Claessen, “Efficient Divide-and-Conquer Parsing of Practical Context-Free Languages.”
-mulSM :: Ring a => Matrix n a -> Matrix n a -> Matrix n a
+mulSM :: (Ring a) => Matrix n a -> Matrix n a -> Matrix n a
 mulSM Empty _y = Empty
 mulSM _x Empty = Empty
 {- ORMOLU_DISABLE -}
@@ -148,7 +148,7 @@ instance Applicative (Matrix 'Zero) where
   Empty <*> _ = Empty
   _ <*> Empty = Empty
 
-instance Applicative (Matrix n) => Applicative (Matrix ('Succ n)) where
+instance (Applicative (Matrix n)) => Applicative (Matrix ('Succ n)) where
   pure m = SquareMatrix (pure m) (pure m) (pure m) (pure m)
   (SquareMatrix a b c d) <*> (SquareMatrix e f g h) = SquareMatrix (a <*> e) (b <*> f) (c <*> g) (d <*> h)
   (UpperRightTriangularMatrix a b d) <*> (UpperRightTriangularMatrix e f h) = UpperRightTriangularMatrix (a <*> e) (b <*> f) (d <*> h)
@@ -163,7 +163,7 @@ instance (Applicative (Matrix n), Semigroup a) => Semigroup (Matrix n a) where
 instance (Applicative (Matrix n), Semigroup a) => Monoid (Matrix n a) where
   mempty = Empty
 
-instance Eq a => Eq (Matrix n a) where
+instance (Eq a) => Eq (Matrix n a) where
   (SquareMatrix a b c d) == (SquareMatrix a' b' c' d') = a == a' && b == b' && c == c' && d == d'
   (UpperRightTriangularMatrix a b c) == (UpperRightTriangularMatrix a' b' c') = SquareMatrix a b Empty c == SquareMatrix a' b' Empty c'
   (UnitMatrix a) == (UnitMatrix b) = a == b
@@ -238,7 +238,11 @@ instance (Size n) => Size ('Succ n) where
 
 nextClosestSquare :: (Ord a, Num a) => a -> a
 nextClosestSquare n =
-  head $ dropWhile (< n) [2 ^ x | x <- ([0 ..] :: [Int])]
+  case l of
+    (x : _) -> x
+    [] -> 0
+  where
+    l = dropWhile (< n) [2 ^ x | x <- ([0 ..] :: [Int])]
 
 lastClosestSquare :: (Ord a, Num a) => a -> a
 lastClosestSquare n =
@@ -257,7 +261,7 @@ class ConstructMatrixFromShape a where
 instance {-# OVERLAPPABLE #-} (SqDepth a ~ 'Zero, BaseType a ~ a) => ConstructMatrixFromShape a where
   constructMatrixFromShape = UnitMatrix
 
-instance {-# OVERLAPPING #-} ConstructMatrixFromShape a => ConstructMatrixFromShape (SqShape a) where
+instance {-# OVERLAPPING #-} (ConstructMatrixFromShape a) => ConstructMatrixFromShape (SqShape a) where
   constructMatrixFromShape ((a, b), (c, d)) = SquareMatrix (constructMatrixFromShape a) (constructMatrixFromShape b) (constructMatrixFromShape c) (constructMatrixFromShape d)
 
 ------------------------------- Algorithm --------------------------------------

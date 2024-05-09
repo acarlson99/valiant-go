@@ -5,7 +5,7 @@
 module MatrixN where
 
 import Data.Data
-import qualified Data.Set as S
+import Data.Set qualified as S
 import Nat
 import Ring
 import RingParse

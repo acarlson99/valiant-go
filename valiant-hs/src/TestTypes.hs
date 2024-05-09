@@ -2,7 +2,6 @@
 {-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE GADTs #-}
-{-# LANGUAGE InstanceSigs #-}
 {-# LANGUAGE MultiParamTypeClasses #-}
 {-# LANGUAGE PolyKinds #-}
 {-# LANGUAGE RankNTypes #-}
@@ -15,7 +14,7 @@ module TestTypes where
 
 import Control.Applicative
 import Control.Arrow
-import qualified Data.Bifunctor
+import Data.Kind
 import Data.Type.Equality
 import Nat
 import RingParse
@@ -35,8 +34,8 @@ import Vec
 -- instance NATTY n => NATTY ('Succ n) where
 --   natty = Sy natty
 
-data LenList :: * -> * where
-  LenList :: SNatl n => SNat n -> Vec n a -> LenList a
+data LenList :: Type -> Type where
+  LenList :: (SNatl n) => SNat n -> Vec n a -> LenList a
 
 -- LenList :: SNatl n => Vec n a -> LenList a
 
@@ -47,8 +46,8 @@ lenList :: [a] -> LenList a
 lenList [] = LenList snat VNil
 lenList (x : xs) = case lenList xs of LenList n ys -> LenList (SSucc n) (VCons x ys)
 
-data LengthyListy :: * -> * where
-  LengthyListy :: SNatl m => Vec (ExpFour m) a -> Matrix m a -> LengthyListy a
+data LengthyListy :: Type -> Type where
+  LengthyListy :: (SNatl m) => Vec (ExpFour m) a -> Matrix m a -> LengthyListy a
 
 -- a = LengthyListy (lenList [1, 2, 3]) (return 1)
 
@@ -131,7 +130,7 @@ type family Flip f a b where
 --       Just Refl -> Just Refl
 
 data LengthlessMat a where
-  LengthlessMat :: Applicative (Matrix n) => Matrix (n :: Nat) a -> LengthlessMat a
+  LengthlessMat :: (Applicative (Matrix n)) => Matrix (n :: Nat) a -> LengthlessMat a
 
 instance Functor LengthlessMat where
   fmap f (LengthlessMat m) = LengthlessMat $ fmap f m
@@ -178,7 +177,7 @@ instance Functor LengthlessMat where
 --   constructVMatrix VNil = Empty
 
 class ConstructVMatrix n where
-  constructVMatrix :: Applicative (Matrix n) => Vec (ExpTwo n) Char -> Matrix (Succ n) Char
+  constructVMatrix :: (Applicative (Matrix n)) => Vec (ExpTwo n) Char -> Matrix (Succ n) Char
 
 instance ConstructVMatrix 'Zero where
   constructVMatrix (VCons s VNil) = UpperRightTriangularMatrix Empty (UnitMatrix s) Empty
@@ -260,7 +259,7 @@ class Renderable a where
   boundingSphere :: a -> Sphere
   hit :: a -> [Fragment] -- returns the "fragments" of all hits with ray
 
-data AnyRenderable = forall a. Renderable a => AnyRenderable a
+data AnyRenderable = forall a. (Renderable a) => AnyRenderable a
 
 instance Renderable AnyRenderable where
   boundingSphere (AnyRenderable a) = boundingSphere a
@@ -384,7 +383,7 @@ it ls = helper ls SZero
 class VecToShape n where
   vecToShape :: Vec n a -> NDepthSq n a
 
-vtll :: SNatl n => Vec n a -> LenList a
+vtll :: (SNatl n) => Vec n a -> LenList a
 vtll = LenList snat
 
 -- lenListQuarterSafe (LenList n v) =

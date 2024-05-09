@@ -37,7 +37,7 @@ verifyRing one =
     y = one `add` one
     z = y `add` one
 
-instance Ring a => Ring (Maybe a) where
+instance (Ring a) => Ring (Maybe a) where
   zero = Nothing
   add (Just a) (Just b) = Just (a `add` b)
   add a Nothing = a

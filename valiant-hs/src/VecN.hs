@@ -9,9 +9,9 @@ import Nat
 import Vec
 
 data VecN a where
-  VecN :: SNatl n => SNat n -> Vec n a -> VecN a
+  VecN :: (SNatl n) => SNat n -> Vec n a -> VecN a
 
-instance Show n => Show (VecN n) where
+instance (Show n) => Show (VecN n) where
   show (VecN sn v) = show v ++ " l=" ++ show sn
 
 -- instance Semigroup (VecN a) where

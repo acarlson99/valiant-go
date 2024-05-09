@@ -79,14 +79,14 @@ library
 
   -- Other library packages from which modules are imported.
   build-depends:
-    , base        >=4.12.0.0
+    , base        >=4.19.0.0
     , containers
 
   -- Directories containing source files.
   hs-source-dirs:   src
 
   -- Base language which the package is written in.
-  default-language: Haskell2010
+  default-language: GHC2021
 
 executable valiant-hs
   -- Import common warning flags.
@@ -103,21 +103,21 @@ executable valiant-hs
 
   -- Other library packages from which modules are imported.
   build-depends:
-    , base        >=4.12.0.0
+    , base        >=4.19.0.0
     , valiant-hs
 
   -- Directories containing source files.
   hs-source-dirs:   exe
 
   -- Base language which the package is written in.
-  default-language: Haskell2010
+  default-language: GHC2021
 
 test-suite valiant-hs-test
   -- Import common warning flags.
   import:           warnings
 
   -- Base language which the package is written in.
-  default-language: Haskell2010
+  default-language: GHC2021
 
   -- Modules included in this executable, other than Main.
   -- other-modules:
@@ -136,5 +136,5 @@ test-suite valiant-hs-test
 
   -- Test dependencies.
   build-depends:
-    , base        >=4.12.0.0
+    , base        >=4.19.0.0
     , valiant-hs

@@ -9,6 +9,7 @@
 
 module Nat where
 
+import Data.Kind (Type)
 import Data.Type.Equality
 
 -- Ideas from https://stackoverflow.com/questions/20558648/what-is-the-datakinds-extension-of-haskell
@@ -88,11 +89,11 @@ type family Half (n :: Nat) :: Nat where
   Half ('Succ 'Zero) = 'Zero
   Half ('Succ ('Succ n)) = 'Succ (Half n)
 
-data Fin :: Nat -> * where
+data Fin :: Nat -> Type where
   FZ :: Fin ('Succ n)
   FS :: Fin n -> Fin ('Succ n)
 
-data SNat :: Nat -> * where
+data SNat :: Nat -> Type where
   SZero :: SNat 'Zero
   SSucc :: SNat n -> SNat ('Succ n)
 

@@ -4,7 +4,7 @@ import Ring
 
 data Tree a = Node {val :: a, lhs :: Tree a, rhs :: Tree a} | Empty
 
-instance Show a => Show (Tree a) where
+instance (Show a) => Show (Tree a) where
   show (Node a l r) = "(" ++ show a ++ " [" ++ show l ++ "] " ++ " [" ++ show r ++ "] )"
   show Empty = ""
 
@@ -28,7 +28,7 @@ instance Traversable Tree where
   traverse _ Empty = pure Empty
   traverse f (Node a l r) = Node <$> f a <*> traverse f l <*> traverse f r
 
-instance Ring a => Ring (Tree a) where
+instance (Ring a) => Ring (Tree a) where
   zero = Node zero Empty Empty
   add ta tb = Node (val ta `add` val tb) ta tb
   mul ta tb = Node (val ta `mul` val tb) ta tb

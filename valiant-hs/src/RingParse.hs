@@ -9,7 +9,7 @@
 module RingParse where
 
 import Data.Maybe (catMaybes)
-import qualified Data.Set as S
+import Data.Set qualified as S
 import Ring
 
 --                             A -> BC          | "fish"
@@ -52,16 +52,16 @@ unaryApp Binary {} _ = Nothing
 
 newtype RingParse a = RingParse {getSyms :: S.Set a}
 
-instance Eq a => Eq (RingParse a) where
+instance (Eq a) => Eq (RingParse a) where
   a == b = getSyms a == getSyms b
 
 liftRPF :: (S.Set a -> S.Set b -> S.Set c) -> RingParse a -> RingParse b -> RingParse c
 liftRPF f (RingParse as) (RingParse bs) = RingParse $ f as bs
 
-instance Ord a => Semigroup (RingParse a) where
+instance (Ord a) => Semigroup (RingParse a) where
   (<>) (RingParse as) (RingParse bs) = RingParse $ as <> bs
 
-instance Ord a => Monoid (RingParse a) where
+instance (Ord a) => Monoid (RingParse a) where
   mempty = RingParse mempty
 
 instance (Show a) => Show (RingParse a) where
@@ -92,7 +92,7 @@ instance (a ~ Symbol String String) => Ring (RingParse a) where
       s = catMaybes [binApp a a_0 a_1 | a_0 <- toL x, a_1 <- toL y, a <- productionRules]
 
 instance (a ~ Symbol String String) => Ring (ProductionRules String String -> RingParse a) where
-  zero = \_ -> RingParse mempty
+  zero = const $ RingParse mempty
   add fa fb = \pr ->
     let (RingParse sa) = fa pr
         (RingParse sb) = fb pr
@@ -122,6 +122,6 @@ __f = const a `mul` const b
 -- [[ab  ], [ ], [cd]]
 -- [[    ], [ ]]
 -- [[abcd]]
-applyBinOp :: a ~ String => [[Symbol a a]] -> ProductionRules a a -> [[Symbol a a]]
+applyBinOp :: (a ~ String) => [[Symbol a a]] -> ProductionRules a a -> [[Symbol a a]]
 applyBinOp syms productionRules =
   zipWith (\a b -> catMaybes $ binApp <$> productionRules <*> a <*> b) syms $ tail syms

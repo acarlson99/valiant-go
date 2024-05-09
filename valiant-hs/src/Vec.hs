@@ -13,12 +13,13 @@
 module Vec where
 
 import Data.Data
+import Data.Kind
 import Nat
 
 -- TODO: add SNatl constraint??
-data Vec :: Nat -> * -> * where
+data Vec :: Nat -> Type -> Type where
   VNil :: Vec 'Zero a
-  VCons :: SNatl n => a -> Vec n a -> Vec ('Succ n) a
+  VCons :: (SNatl n) => a -> Vec n a -> Vec ('Succ n) a
 
 instance Functor (Vec n) where
   fmap _ VNil = VNil
@@ -32,18 +33,18 @@ instance (SNatl n, Applicative (Vec n)) => Applicative (Vec ('Succ n)) where
   pure a = VCons a $ pure a
   (<*>) (VCons f fs) (VCons v vs) = VCons (f v) $ fs <*> vs
 
-instance Show a => (Show (Vec n a)) where
+instance (Show a) => (Show (Vec n a)) where
   show (VCons x xs) = "(cons " ++ show x ++ " " ++ show xs ++ ")"
   show VNil = "'()"
 
-class SNatl n => ListToVec n where
+class (SNatl n) => ListToVec n where
   listToVec :: [a] -> Maybe (Vec n a)
 
 instance ListToVec 'Zero where
   listToVec (_ : _) = Nothing
   listToVec _ = Just VNil
 
-instance ListToVec n => ListToVec ('Succ n) where
+instance (ListToVec n) => ListToVec ('Succ n) where
   listToVec (x : xs) = VCons x <$> listToVec xs
   listToVec _ = Nothing
 
@@ -61,7 +62,7 @@ instance VecAppend n where
 instance NatTypeToVal (Vec 'Zero a) where
   natTypeToVal = const Zero
 
-instance NatTypeToVal (Vec n a) => NatTypeToVal (Vec ('Succ n) a) where
+instance (NatTypeToVal (Vec n a)) => NatTypeToVal (Vec ('Succ n) a) where
   natTypeToVal :: Vec ('Succ n) a -> Nat
   natTypeToVal (VCons _ xs) = Succ $ natTypeToVal xs
 
