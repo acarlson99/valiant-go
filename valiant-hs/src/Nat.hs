@@ -99,7 +99,7 @@ data SNat :: Nat -> * where
 instance Show (SNat n) where
   show nat = show $ f nat
     where
-      f :: SNat n -> Int
+      f :: forall n. SNat n -> Int
       f (SSucc n) = 1 + f n
       f SZero = 0
 
@@ -109,11 +109,11 @@ class SNatl (n :: Nat) where
 instance SNatl 'Zero where
   snat = SZero
 
-instance SNatl n => SNatl ('Succ n) where
+instance (SNatl n) => SNatl ('Succ n) where
   snat = SSucc snat
 
 data SNatWrap where
-  SNatWrap :: SNatl a => SNat a -> SNatWrap
+  SNatWrap :: (SNatl a) => SNat a -> SNatWrap
 
 snatHalf :: SNat a -> SNat (Half a)
 snatHalf (SSucc (SSucc n)) = SSucc (snatHalf n)
