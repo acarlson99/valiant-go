@@ -10,9 +10,9 @@ type Production = (Symbol, [Symbol])
 
 data CFG = CFG
   { startSymbol :: Symbol,
-    nonTerminals :: [Symbol],
-    terminals :: [Symbol],
-    productions :: [Production]
+    nonTerminals :: S.Set Symbol,
+    terminals :: S.Set Symbol,
+    productions :: S.Set Production
   }
   deriving (Show)
 
@@ -20,9 +20,9 @@ instance Eq CFG where
   (CFG sa nta ta pa) == (CFG sb ntb tb pb) =
     and
       [ sa == sb,
-        S.fromList nta == S.fromList ntb,
-        S.fromList ta == S.fromList tb,
-        S.fromList pa == S.fromList pb
+        nta == ntb,
+        ta == tb,
+        pa == pb
       ]
 
 renameNonTerminal :: Symbol -> Symbol -> CFG -> CFG
@@ -36,10 +36,10 @@ renameNonTerminal old new cfg@(CFG startSymbol nonTerms terms prods) =
       replaceProduction :: Production -> Production
       replaceProduction (lhs, rhs) = (replaceNonTerm old new lhs, replaceSymbols rhs)
 
-      newProductions = map replaceProduction prods
-   in CFG (replaceNonTerm old new startSymbol) (map (replaceNonTerm old new) nonTerms) terms newProductions
+      newProductions = S.map replaceProduction prods
+   in CFG (replaceNonTerm old new startSymbol) (S.map (replaceNonTerm old new) nonTerms) terms newProductions
 
--- Function to eliminate the start symbol from right-hand sides and introduce a new start symbol S0
+-- https://en.wikipedia.org/wiki/Chomsky_normal_form#START:_Eliminate_the_start_symbol_from_right-hand_sides
 eliminateStartSymbol :: CFG -> CFG
 eliminateStartSymbol cfg@(CFG {startSymbol = oldStart, productions = oldProductions}) =
   CFG
@@ -50,26 +50,30 @@ eliminateStartSymbol cfg@(CFG {startSymbol = oldStart, productions = oldProducti
     }
   where
     newStart = "S0" -- TODO: generalize
-    newProductions = (newStart, [oldStart]) : oldProductions
-    newNonTerminals = nub $ newStart : nonTerminals cfg
+    newProductions = (newStart, [oldStart]) `S.insert` oldProductions
+    newNonTerminals = newStart `S.insert` nonTerminals cfg
 
 replaceProduction :: CFG -> Production -> Production -> CFG
 replaceProduction cfg oldProd newProd =
-  let newProds = map (replaceIfEqual oldProd newProd) (productions cfg)
-      newNonTerms =
-        if elem (fst oldProd) (nonTerminals cfg)
-          then (fst newProd) : filter (/= fst oldProd) (nonTerminals cfg)
-          else nonTerminals cfg
-      newStartSymbol = if startSymbol cfg == fst oldProd then fst newProd else startSymbol cfg
-   in CFG
-        { startSymbol = newStartSymbol,
-          nonTerminals = newNonTerms,
-          terminals = terminals cfg,
-          productions = newProds
-        }
-  where
-    replaceIfEqual :: Production -> Production -> Production -> Production
-    replaceIfEqual old new p = if p == old then new else p
+  let newCfg = removeProduction cfg oldProd
+   in if newCfg == cfg
+        then cfg
+        else
+          addProduction newCfg newProd
+
+-- Add a production to the CFG
+addProduction :: CFG -> Production -> CFG
+addProduction cfg prod =
+  let newProductions = prod `S.insert` productions cfg
+      newNonTerms = S.map fst $ newProductions `S.union` productions cfg
+   in cfg {productions = newProductions, nonTerminals = newNonTerms}
+
+-- Remove a production from the CFG
+removeProduction :: CFG -> Production -> CFG
+removeProduction cfg prod =
+  let newProductions = prod `S.delete` productions cfg
+      newNonTerms = S.map fst newProductions
+   in cfg {productions = newProductions, nonTerminals = newNonTerms}
 
 -- TODO: `splitProduction` but in a tree shape instead of a list shape
 splitProduction :: Production -> [Production]
@@ -79,46 +83,42 @@ splitProduction (lhs, rhs) =
     else
       let newNonTerms = map (\i -> lhs ++ "_" ++ show i) [1 .. length rhs - 2]
           newProductions :: [(Symbol, Symbol)]
-          newProductions = zipWith (\nt1 nt2 -> (nt1, nt2)) newNonTerms (tail rhs)
+          newProductions = zip newNonTerms (tail rhs)
           newProductions' :: [Production]
           newProductions' = zipWith (curry (\((lhs, rhs), s) -> (lhs, [rhs, s]))) newProductions (map fst $ tail newProductions)
           finalProduction = (last newNonTerms, [last (init rhs), last rhs])
        in (lhs, [head rhs, head newNonTerms]) : newProductions' ++ [finalProduction]
 
--- Function to eliminate right-hand sides with more than 2 non-terminals
--- eliminateMoreThanTwoNonTerminals :: CFG -> CFG
-eliminateMoreThanTwoNonTerminals :: CFG -> [Production]
+-- https://en.wikipedia.org/wiki/Chomsky_normal_form#BIN:_Eliminate_right-hand_sides_with_more_than_2_nonterminals
+eliminateMoreThanTwoNonTerminals :: CFG -> CFG
 eliminateMoreThanTwoNonTerminals cfg@(CFG {nonTerminals = nonTerms, productions = oldProductions}) =
-  let toReplace = filter ((> 2) . length . snd) oldProductions
-   in toReplace
+  let toReplace :: [Production]
+      toReplace = filter ((> 2) . length . snd) $ S.toList oldProductions
+      pairs = zip toReplace $ map splitProduction toReplace
+      ins :: [Production] -> S.Set Production -> S.Set Production
+      ins ps s = foldr S.insert s ps
+      x = foldr (\(x, xs) prods -> ins xs $ x `S.delete` prods) oldProductions pairs
+   in cfg {nonTerminals = S.map fst x, productions = x}
 
--- Function to remove epsilon productions from a CFG
+-- https://en.wikipedia.org/wiki/Chomsky_normal_form#DEL:_Eliminate_%CE%B5-rules
 removeEpsilonProductions :: CFG -> CFG
-removeEpsilonProductions cfg = cfg {productions = newProductions}
-  where
-    newProductions = filter (\(lhs, rhs) -> not $ hasEpsilon lhs rhs) updatedProductions
-    updatedProductions = productions cfg
-    hasEpsilon lhs rhs = lhs `elem` nonTerminals cfg && null rhs
+removeEpsilonProductions cfg@(CFG {productions = oldProductions}) =
+  let nullableNonTerminals = findNullableNonTerminals cfg
+      newProductions = S.filter (not . isEpsilonProduction nullableNonTerminals) oldProductions
+   in cfg {productions = newProductions}
 
--- Function to determine nullable non-terminals
-nullableNonTerminals :: CFG -> [Symbol]
-nullableNonTerminals (CFG {productions = prods}) = fixpoint $ filterNullable initialNullable
-  where
-    fixpoint xs = if null newNullable then xs else fixpoint $ nub (xs ++ newNullable)
-    initialNullable = [lhs | (lhs, rhs) <- prods, null rhs] -- Start with non-terminals that directly derive ε
-    filterNullable nullable = [lhs | (lhs, rhs) <- prods, all (`elem` nullable) rhs]
-    newNullable = filterNullable initialNullable
+findNullableNonTerminals :: CFG -> S.Set Symbol
+findNullableNonTerminals (CFG {productions = prods}) =
+  let nullableFromEpsilon = S.map fst $ S.filter (\(_, rhs) -> null rhs) prods
+      closure s =
+        let newNullable = S.filter (\(lhs, rhs) -> all (`S.member` s) rhs && lhs `S.notMember` s) prods
+            updatedSet = s `S.union` S.map fst newNullable
+         in if S.null newNullable then s else closure updatedSet
+   in closure nullableFromEpsilon
 
--- Function to generate all versions of a rule with some nullable symbols omitted
-generateVersions :: [Symbol] -> [Symbol] -> [Symbol] -> Production -> [Production]
-generateVersions nullableSymbols nonTerms terms (lhs, rhs) =
-  filter isValid $ filter (not . isEmpty) $ map (\sub -> (lhs, filter (`notElem` sub) rhs)) subsets
-  where
-    subsets = tail $ subsequences rhs
-    isEmpty (_, []) = True
-    isEmpty _ = False
-    isValid (_, rhs') = all (`elem` nonTermsAndTerms) rhs'
-    nonTermsAndTerms = nonTerms ++ terms
+isEpsilonProduction :: S.Set Symbol -> Production -> Bool
+isEpsilonProduction nullable (lhs, rhs) =
+  null rhs || all (`S.member` nullable) rhs
 
 -- Sample main function to test transformations
 main :: IO ()
@@ -127,18 +127,19 @@ main = do
   let grammar =
         CFG
           { startSymbol = "S",
-            nonTerminals = ["S", "A", "B", "C"],
-            terminals = ["a", "b", "c"],
+            nonTerminals = S.fromList ["S", "A", "B", "C"],
+            terminals = S.fromList ["a", "b", "c"],
             productions =
-              [ ("S", ["A", "b", "B"]),
-                ("S", ["C"]),
-                ("B", ["A", "A"]),
-                ("B", ["A", "C"]),
-                ("C", ["b"]),
-                ("C", ["c"]),
-                ("A", ["a"]),
-                ("A", [])
-              ]
+              S.fromList
+                [ ("S", ["A", "b", "B"]),
+                  ("S", ["C"]),
+                  ("B", ["A", "A"]),
+                  ("B", ["A", "C"]),
+                  ("C", ["b"]),
+                  ("C", ["c"]),
+                  ("A", ["a"]),
+                  ("A", [])
+                ]
           }
 
   putStrLn "Original Grammar:"
@@ -146,7 +147,7 @@ main = do
 
   let transformations =
         [ ("eliminateStartSymbol", eliminateStartSymbol),
-          -- ("eliminateMoreThanTwoNonTerminals", eliminateMoreThanTwoNonTerminals),
+          ("eliminateMoreThanTwoNonTerminals", eliminateMoreThanTwoNonTerminals),
           ("removeEpsilonProductions", removeEpsilonProductions)
         ]
 
