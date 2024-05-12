@@ -1,4 +1,7 @@
-module Main (main) where
+module Main where
+
+import Test.HUnit
+import TestGrammar qualified as G
 
 main :: IO ()
-main = putStrLn "Test suite not yet implemented."
+main = runTestTTAndExit . test $ concat [G.tests]
