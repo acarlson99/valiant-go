@@ -25,20 +25,6 @@ instance Eq CFG where
         pa == pb
       ]
 
-renameNonTerminal :: Symbol -> Symbol -> CFG -> CFG
-renameNonTerminal old new cfg@(CFG startSymbol nonTerms terms prods) =
-  let replaceNonTerm :: Symbol -> Symbol -> Symbol -> Symbol
-      replaceNonTerm old new sym = if sym == old then new else sym
-
-      replaceSymbols :: [Symbol] -> [Symbol]
-      replaceSymbols = map (replaceNonTerm old new)
-
-      replaceProduction :: Production -> Production
-      replaceProduction (lhs, rhs) = (replaceNonTerm old new lhs, replaceSymbols rhs)
-
-      newProductions = S.map replaceProduction prods
-   in CFG (replaceNonTerm old new startSymbol) (S.map (replaceNonTerm old new) nonTerms) terms newProductions
-
 -- https://en.wikipedia.org/wiki/Chomsky_normal_form#START:_Eliminate_the_start_symbol_from_right-hand_sides
 eliminateStartSymbol :: CFG -> CFG
 eliminateStartSymbol cfg@(CFG {startSymbol = oldStart, productions = oldProductions}) =
@@ -52,28 +38,6 @@ eliminateStartSymbol cfg@(CFG {startSymbol = oldStart, productions = oldProducti
     newStart = "S0" -- TODO: generalize
     newProductions = (newStart, [oldStart]) `S.insert` oldProductions
     newNonTerminals = newStart `S.insert` nonTerminals cfg
-
-replaceProduction :: CFG -> Production -> Production -> CFG
-replaceProduction cfg oldProd newProd =
-  let newCfg = removeProduction cfg oldProd
-   in if newCfg == cfg
-        then cfg
-        else
-          addProduction newCfg newProd
-
--- Add a production to the CFG
-addProduction :: CFG -> Production -> CFG
-addProduction cfg prod =
-  let newProductions = prod `S.insert` productions cfg
-      newNonTerms = S.map fst $ newProductions `S.union` productions cfg
-   in cfg {productions = newProductions, nonTerminals = newNonTerms}
-
--- Remove a production from the CFG
-removeProduction :: CFG -> Production -> CFG
-removeProduction cfg prod =
-  let newProductions = prod `S.delete` productions cfg
-      newNonTerms = S.map fst newProductions
-   in cfg {productions = newProductions, nonTerminals = newNonTerms}
 
 -- TODO: `splitProduction` but in a tree shape instead of a list shape
 splitProduction :: Production -> [Production]
@@ -104,7 +68,8 @@ eliminateMoreThanTwoNonTerminals cfg@(CFG {nonTerminals = nonTerms, productions 
 removeEpsilonProductions :: CFG -> CFG
 removeEpsilonProductions cfg@(CFG {productions = oldProductions}) =
   let nullableNonTerminals = findNullableNonTerminals cfg
-      newProductions = S.filter (not . isEpsilonProduction nullableNonTerminals) oldProductions
+      newProductions = S.fromList . removeEmptyRules $ concatMap (inlineNullableProduction nullableNonTerminals) $ S.toList oldProductions
+      removeEmptyRules = filter (not . null . snd)
    in cfg {productions = newProductions}
 
 findNullableNonTerminals :: CFG -> S.Set Symbol
@@ -116,9 +81,58 @@ findNullableNonTerminals (CFG {productions = prods}) =
          in if S.null newNullable then s else closure updatedSet
    in closure nullableFromEpsilon
 
-isEpsilonProduction :: S.Set Symbol -> Production -> Bool
-isEpsilonProduction nullable (lhs, rhs) =
-  null rhs || all (`S.member` nullable) rhs
+-- Function to inline a single production to include versions with and without nullable non-terminals
+inlineNullableProduction :: S.Set Symbol -> Production -> [Production]
+inlineNullableProduction nullable (lhs, rhs) =
+  if any (`S.member` nullable) rhs
+    then
+      let versions = generateVersions nullable rhs
+       in map (\v -> (lhs, v)) versions
+    else [(lhs, rhs)]
+
+-- Function to generate versions of a production with and without nullable non-terminals
+generateVersions :: S.Set Symbol -> [Symbol] -> [[Symbol]]
+generateVersions nullable [] = [[]]
+generateVersions nullable (x : xs) =
+  if x `S.member` nullable
+    then
+      let restVersions = generateVersions nullable xs
+          withoutX = map (x :) restVersions
+          withX = map (\v -> if null v then xs else v) restVersions
+       in withX ++ withoutX
+    else map (x :) $ generateVersions nullable xs
+
+-- optimization
+
+-- Function to inline all eta-rules in the CFG
+inlineEtaRules :: CFG -> CFG
+inlineEtaRules cfg@(CFG {productions = oldProductions}) =
+  let etaProductions = findEtaProductions oldProductions
+      newProductions = foldr (inlineProduction oldProductions) oldProductions etaProductions
+   in cfg {productions = newProductions}
+
+-- Function to find all eta-productions in the grammar
+findEtaProductions :: S.Set Production -> S.Set Production
+findEtaProductions prods =
+  S.filter
+    (\(lhs, rhs) -> length rhs == 1 && head rhs `S.member` nonTerminals)
+    prods
+  where
+    nonTerminals = S.map fst prods
+
+-- Function to inline an eta-production into the CFG
+inlineProduction :: S.Set Production -> Production -> S.Set Production -> S.Set Production
+inlineProduction oldProductions (etaLHS, [etaRHS]) newProductions =
+  foldr (replaceAndInsert etaLHS etaRHS) newProductions $ S.toList $ S.filter (\(lhs, _) -> lhs == etaRHS) oldProductions
+  where
+    replaceAndInsert :: Symbol -> Symbol -> Production -> S.Set Production -> S.Set Production
+    replaceAndInsert etaLHS etaRHS (lhs, rhs) set =
+      let newProd = (lhs, replaceEta rhs)
+       in if lhs == etaLHS then set else S.insert newProd set
+    replaceEta :: [Symbol] -> [Symbol]
+    replaceEta [x] = [x]
+    replaceEta (x : xs) = if x == etaRHS then xs else x : xs
+    replaceEta [] = []
 
 -- Sample main function to test transformations
 main :: IO ()
