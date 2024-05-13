@@ -64,7 +64,7 @@ instance (Ord a) => Monoid (RingParse a) where
 instance (Show a) => Show (RingParse a) where
   show (RingParse s) = show $ foldr (:) [] s
 
-instance (a ~ Symbol String String) => Ring (ProductionRules String String -> RingParse a) where
+instance (Ord b, Ord a) => Ring (ProductionRules a b -> RingParse (Symbol a b)) where
   zero = const $ RingParse mempty
   add fa fb prods =
     let (RingParse sa) = fa prods
