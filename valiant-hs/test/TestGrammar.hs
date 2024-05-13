@@ -179,7 +179,7 @@ testRemoveEpsilonProductions =
 
 testInlineUnitRules =
   test
-    [ "Test chains are reduced"
+    [ "Test normal reduction"
         ~: inlineUnitRules
           ( gramFromProds
               [ ("S", ["A", "b", "B"]),
@@ -197,5 +197,38 @@ testInlineUnitRules =
             ("A", ["a"]),
             ("B", ["a"]),
             ("C", ["b", "c"])
+          ],
+      "Test chains are fully reduced"
+        ~: inlineUnitRules
+          ( gramFromProds
+              [ ("S", ["A"]),
+                ("A", ["B"]),
+                ("B", ["C"]),
+                ("C", ["c"])
+              ]
+          )
+        ~?= gramFromProds
+          [ ("S", ["c"]),
+            ("A", ["c"]),
+            ("B", ["c"]),
+            ("C", ["c"])
           ]
     ]
+
+-- https://en.wikipedia.org/wiki/Chomsky_normal_form#Example
+wikiExample :: [Production]
+wikiExample =
+  [ ("Expr", ["Term"]),
+    ("Expr", ["Expr", "AddOp", "Term"]),
+    ("Expr", ["AddOp", "Term"]),
+    ("Term", ["Factor"]),
+    ("Term", ["Term", "MulOp", "Factor"]),
+    ("Factor", ["Primary"]),
+    ("Factor", ["Factor", "^", "Primary"]),
+    ("Primary", ["number", "variable"]),
+    ("Primary", ["(", "Expr", ")"]),
+    ("AddOp", ["+"]),
+    ("AddOp", ["-"]),
+    ("MulOp", ["*"]),
+    ("MulOp", ["/"])
+  ]

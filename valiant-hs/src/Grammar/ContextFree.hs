@@ -60,7 +60,7 @@ splitProduction (lhs, rhs) =
   if length rhs <= 2
     then [(lhs, rhs)]
     else
-      let newNonTerms = map (\i -> lhs ++ "_" ++ show i) [1 .. length rhs - 2]
+      let newNonTerms = map (\i -> lhs ++ "_" ++ show i) [1 .. length rhs - 2] -- TODO: this line will cause naming conflicts
           newProductions :: [(Symbol, Symbol)]
           newProductions = zip newNonTerms (tail rhs)
           newProductions' :: [Production]
@@ -120,29 +120,26 @@ generateVersions nullable (x : xs) =
 -- optimization
 
 -- inlineUnitRules :: CFG -> CFG
-inlineUnitRules cfg@(CFG {productions = oldProductions}) = inlineChildren oldProductions $ findUnitProductions oldProductions
-
-inlineChildren :: S.Set Production -> S.Set Production -> S.Set [Production]
-inlineChildren prods targets =
-  let replacementPairs = S.map (\(lhs, rhs) -> ((lhs, rhs), concatMap (S.toList . rulesThatUseSym prods) rhs))
-   in S.map (uncurry (renameRules . fst)) $ replacementPairs targets
+inlineUnitRules cfg@(CFG {productions = oldProductions}) =
+  let inlineChildren :: S.Set Production -> Production -> S.Set Production
+      inlineChildren prods target =
+        let replacementPairs (lhs, rhs) = S.fromList $ concatMap (S.toList . rulesThatUseSym prods) rhs
+            replaceIf :: [a] -> (a -> Bool) -> [a] -> [a]
+            replaceIf (x : xs) match inthere = let rest = replaceIf xs match inthere in if match x then inthere ++ rest else rest
+            replaceIf [] match inthere = []
+            performInline :: Production -> Production -> Production
+            performInline parent@(pn, px) child@(cn, cx) = (,) pn $ replaceIf px (== cn) cx
+         in renameRules (fst target) $ replacementPairs target
+      unitRules = findUnitProductions oldProductions
+      newRules = S.map (inlineChildren oldProductions) unitRules
+      ps = S.union (S.unions newRules) oldProductions S.\\ unitRules
+   in if null unitRules then cfg else inlineUnitRules cfg {productions = ps}
 
 rulesThatUseSym :: S.Set Production -> Symbol -> S.Set Production
 rulesThatUseSym oldProductions r = S.filter ((== r) . fst) oldProductions
 
-renameRules :: Symbol -> [Production] -> [Production]
-renameRules name = map (Data.Bifunctor.first $ const name)
-
-gfp :: S.Set Production -> CFG
-gfp prods =
-  CFG
-    { startSymbol = "S",
-      nonTerminals = nts,
-      terminals = (S.fromList $ concatMap (\(x, xs) -> x : xs) prods) S.\\ nts,
-      productions = prods
-    }
-  where
-    nts = S.map fst prods
+renameRules :: Symbol -> S.Set Production -> S.Set Production
+renameRules name = S.map (Data.Bifunctor.first $ const name)
 
 -- Function to find all unit-productions in the grammar
 findUnitProductions :: S.Set Production -> S.Set Production
@@ -184,7 +181,8 @@ main = do
   let transformations =
         [ ("eliminateStartSymbol", eliminateStartSymbol),
           ("eliminateMoreThanTwoNonTerminals", eliminateMoreThanTwoNonTerminals),
-          ("removeEpsilonProductions", removeEpsilonProductions)
+          ("removeEpsilonProductions", removeEpsilonProductions),
+          ("inlineUnitRules", inlineUnitRules)
         ]
 
   finalGrammar <- foldM (\g (s, f) -> logAndTransform g s f) grammar transformations
