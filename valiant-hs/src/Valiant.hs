@@ -4,6 +4,7 @@
 
 module Valiant where
 
+import Data.Maybe
 import Data.Set qualified as S
 import MatrixN
 import Nat
@@ -67,30 +68,38 @@ symToTree (Nonterminal x' xs) =
         _ -> T.Node x T.Empty T.Empty
 symToTree (Terminal x) = T.Node (Right x) T.Empty T.Empty
 
--- Just t = symToTree . head . S.toList . getSyms <$> (matrixTopRightMost . fmap ($ productionRules) $ runV __a)
-
--- topLevelParse :: (a ~ String, Ord a) => ProductionRules a a -> [a] -> Maybe (T.Tree (Either a a))
--- topLevelParse prs as =
---   let mat = pure <$> vecNToValiantMatrixN $ listToVecN as
---    in symToTree . head . S.toList . getSyms <$> (matrixTopRightMost . fmap ($ productionRules) $ runV mat)
+-- Parse a list of `tokens` using `productionRules` into parse trees
+valiantParse :: (nt ~ String, t ~ String) => ProductionRules nt t -> [String] -> Maybe [T.Tree (Either nt t)]
+valiantParse productionRules tokens =
+  let strToTerminalSym = RingParse . S.fromList . catMaybes . (<$> productionRules) . flip unaryApp . Terminal
+      opRing = map strToTerminalSym tokens
+      mat = pure <$> vecNToValiantMatrixN mempty (listToVecN opRing)
+   in map symToTree . S.toList . getSyms
+        <$> liftMatF
+          (matrixTopRightMost . fmap ($ productionRules))
+          (liftV mat)
 
 -- EXAMPLE
 
--- productionRules :: ProductionRules String String
--- productionRules =
---   [ Binary "S" (Nonterminal "NP" []) (Nonterminal "VP" []),
---     Binary "VP" (Nonterminal "VP" []) (Nonterminal "PP" []),
---     Binary "VP" (Nonterminal "V" []) (Nonterminal "NP" []),
---     Unary "VP" (Terminal "eats"),
---     Binary "PP" (Nonterminal "P" []) (Nonterminal "NP" []),
---     Binary "NP" (Nonterminal "Det" []) (Nonterminal "N" []),
---     Unary "NP" (Terminal "she"),
---     Unary "V" (Terminal "eats"),
---     Unary "P" (Terminal "with"),
---     Unary "N" (Terminal "fish"),
---     Unary "N" (Terminal "fork"),
---     Unary "Det" (Terminal "a")
---   ]
+productionRules :: ProductionRules String String
+productionRules =
+  [ Binary "S" (Nonterminal "NP" []) (Nonterminal "VP" []),
+    Binary "VP" (Nonterminal "VP" []) (Nonterminal "PP" []),
+    Binary "VP" (Nonterminal "V" []) (Nonterminal "NP" []),
+    Unary "VP" (Terminal "eats"),
+    Binary "PP" (Nonterminal "P" []) (Nonterminal "NP" []),
+    Binary "NP" (Nonterminal "Det" []) (Nonterminal "N" []),
+    Unary "NP" (Terminal "she"),
+    Unary "V" (Terminal "eats"),
+    Unary "P" (Terminal "with"),
+    Unary "N" (Terminal "fish"),
+    Unary "N" (Terminal "fork"),
+    Unary "Det" (Terminal "a")
+  ]
+
+toks = words "she eats a fish with a fork"
+
+res = valiantParse productionRules toks
 
 -- instance (a ~ Symbol String String) => Ring (RingParse a) where
 --   zero = RingParse mempty
@@ -100,7 +109,7 @@ symToTree (Terminal x) = T.Node (Right x) T.Empty T.Empty
 --       toL = foldr (:) []
 --       s = catMaybes [binApp a a_0 a_1 | a_0 <- toL x, a_1 <- toL y, a <- productionRules]
 
--- syms = map Terminal $ words "she eats a fish with a fork"
+-- syms = map Terminal toks
 
 -- applyUnaryOp = catMaybes . (<$> productionRules) . flip unaryApp
 
@@ -108,19 +117,6 @@ symToTree (Terminal x) = T.Node (Right x) T.Empty T.Empty
 
 -- opRing :: [RingParse (Symbol String String)]
 -- opRing = map (RingParse . S.fromList) unaryOps
-
--- __f :: ProductionRules String String -> RingParse (Symbol String String)
--- __f = const a `mul` const b
---   where
---     (a : b : _) = opRing
-
--- -- [[a   ], [b], [c ], [d]]
--- -- [[ab  ], [ ], [cd]]
--- -- [[    ], [ ]]
--- -- [[abcd]]
--- applyBinOp :: (a ~ String) => [[Symbol a a]] -> ProductionRules a a -> [[Symbol a a]]
--- applyBinOp syms productionRules =
---   zipWith (\a b -> catMaybes $ binApp <$> productionRules <*> a <*> b) syms $ tail syms
 
 -- __a :: Matrix ('Succ ('Succ ('Succ 'Zero))) (ProductionRules String String -> RingParse (Symbol String String))
 -- __a =
