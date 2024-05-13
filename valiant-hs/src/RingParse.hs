@@ -16,12 +16,10 @@ import Ring
 data Symbol nt t = Nonterminal nt [Symbol nt t] | Terminal t
   deriving (Eq, Ord)
 
+symNameEq :: (Eq nt, Eq t) => Symbol nt t -> Symbol nt t -> Bool
 symNameEq (Nonterminal a _) (Nonterminal b _) = a == b
 symNameEq (Terminal a) (Terminal b) = a == b
 symNameEq _ _ = False
-
-symChildren (Nonterminal _ xs) = xs
-symChildren _ = []
 
 instance (Show t, Show nt) => Show (Symbol nt t) where
   show (Nonterminal n _) = '/' : show n ++ "/"

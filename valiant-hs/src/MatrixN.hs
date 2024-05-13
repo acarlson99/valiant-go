@@ -5,10 +5,7 @@
 module MatrixN where
 
 import Data.Data
-import Data.Set qualified as S
 import Nat
-import Ring
-import RingParse
 import SparseMatrix
 import Vec
 import VecN

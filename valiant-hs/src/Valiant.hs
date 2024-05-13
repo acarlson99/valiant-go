@@ -11,7 +11,6 @@ import Nat
 import Ring
 import RingParse
 import SparseMatrix
-import SparseMatrix qualified as M
 import Tree qualified as T
 import VecN
 
@@ -81,8 +80,8 @@ valiantParse productionRules tokens =
 
 -- EXAMPLE
 
-productionRules :: ProductionRules String String
-productionRules =
+_productionRules :: ProductionRules String String
+_productionRules =
   [ Binary "S" (Nonterminal "NP" []) (Nonterminal "VP" []),
     Binary "VP" (Nonterminal "VP" []) (Nonterminal "PP" []),
     Binary "VP" (Nonterminal "V" []) (Nonterminal "NP" []),
@@ -97,9 +96,11 @@ productionRules =
     Unary "Det" (Terminal "a")
   ]
 
+toks :: [String]
 toks = words "she eats a fish with a fork"
 
-res = valiantParse productionRules toks
+res :: Maybe [T.Tree (Either String String)]
+res = valiantParse _productionRules toks
 
 -- instance (a ~ Symbol String String) => Ring (RingParse a) where
 --   zero = RingParse mempty

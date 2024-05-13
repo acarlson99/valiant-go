@@ -4,7 +4,6 @@ module Grammar.ContextFree where
 
 import Control.Monad
 import Data.Bifunctor qualified
-import Data.List (nub, subsequences)
 import Data.Set qualified as S
 
 type Symbol = String
@@ -72,14 +71,14 @@ splitProduction (lhs, rhs) =
 
 -- https://en.wikipedia.org/wiki/Chomsky_normal_form#BIN:_Eliminate_right-hand_sides_with_more_than_2_nonterminals
 eliminateMoreThanTwoNonTerminals :: CFG -> CFG
-eliminateMoreThanTwoNonTerminals cfg@(CFG {nonTerminals = nonTerms, productions = oldProductions}) =
+eliminateMoreThanTwoNonTerminals cfg@(CFG {productions = oldProductions}) =
   let toReplace :: [Production]
       toReplace = filter ((> 2) . length . snd) $ S.toList oldProductions
       pairs = zip toReplace $ map splitProduction toReplace
       ins :: [Production] -> S.Set Production -> S.Set Production
       ins ps s = foldr S.insert s ps
-      x = foldr (\(x, xs) prods -> ins xs $ x `S.delete` prods) oldProductions pairs
-   in cfg {nonTerminals = S.map fst x, productions = x}
+      prods = foldr (\(x, xs) prods -> ins xs $ x `S.delete` prods) oldProductions pairs
+   in cfg {nonTerminals = S.map fst prods, productions = prods}
 
 findNullableNonTerminals :: CFG -> S.Set Symbol
 findNullableNonTerminals (CFG {productions = prods}) =
@@ -92,7 +91,7 @@ findNullableNonTerminals (CFG {productions = prods}) =
 
 -- Function to generate versions of a production with and without nullable non-terminals
 generateNullableVersions :: S.Set Symbol -> [Symbol] -> [[Symbol]]
-generateNullableVersions nullable [] = [[]]
+generateNullableVersions _ [] = [[]]
 generateNullableVersions nullable (x : xs) =
   if x `S.member` nullable
     then
@@ -212,5 +211,5 @@ splitStringToTree str =
 treeToGrams :: Tree Symbol -> [(Symbol, [Symbol])]
 treeToGrams (Branch (Leaf xa) (Leaf xb)) = [("NAME", [xa, xb])]
 treeToGrams (Branch (Leaf xa) Empty) = [("NAME", [xa])]
-treeToGrams (Branch l r) = []
+treeToGrams (Branch _ _) = []
 treeToGrams Empty = []

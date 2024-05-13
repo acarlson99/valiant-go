@@ -61,6 +61,7 @@ library
 
   -- Modules exported by the library.
   exposed-modules:
+    Grammar.ContextFree
     MatrixN
     Nat
     Ring
@@ -137,4 +138,6 @@ test-suite valiant-hs-test
   -- Test dependencies.
   build-depends:
     , base        >=4.19.0.0
+    , containers
+    , HUnit
     , valiant-hs
