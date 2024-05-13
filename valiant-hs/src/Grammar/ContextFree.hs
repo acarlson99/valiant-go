@@ -79,14 +79,6 @@ eliminateMoreThanTwoNonTerminals cfg@(CFG {nonTerminals = nonTerms, productions 
       x = foldr (\(x, xs) prods -> ins xs $ x `S.delete` prods) oldProductions pairs
    in cfg {nonTerminals = S.map fst x, productions = x}
 
--- https://en.wikipedia.org/wiki/Chomsky_normal_form#DEL:_Eliminate_%CE%B5-rules
-removeEpsilonProductions :: CFG -> CFG
-removeEpsilonProductions cfg@(CFG {productions = oldProductions}) =
-  let nullableNonTerminals = findNullableNonTerminals cfg
-      newProductions = S.fromList . removeEmptyRules $ concatMap (inlineNullableProduction nullableNonTerminals) $ S.toList oldProductions
-      removeEmptyRules = filter (not . null . snd)
-   in cfg {productions = newProductions}
-
 findNullableNonTerminals :: CFG -> S.Set Symbol
 findNullableNonTerminals (CFG {productions = prods}) =
   let nullableFromEpsilon = S.map fst $ S.filter (\(_, rhs) -> null rhs) prods
@@ -96,30 +88,43 @@ findNullableNonTerminals (CFG {productions = prods}) =
          in if S.null newNullable then s else closure updatedSet
    in closure nullableFromEpsilon
 
+-- Function to generate versions of a production with and without nullable non-terminals
+generateNullableVersions :: S.Set Symbol -> [Symbol] -> [[Symbol]]
+generateNullableVersions nullable [] = [[]]
+generateNullableVersions nullable (x : xs) =
+  if x `S.member` nullable
+    then
+      let restVersions = generateNullableVersions nullable xs
+          withoutX = map (x :) restVersions
+          withX = map (\v -> if null v then xs else v) restVersions
+       in withX ++ withoutX
+    else map (x :) $ generateNullableVersions nullable xs
+
 -- Function to inline a single production to include versions with and without nullable non-terminals
 inlineNullableProduction :: S.Set Symbol -> Production -> [Production]
 inlineNullableProduction nullable (lhs, rhs) =
   if any (`S.member` nullable) rhs
     then
-      let versions = generateVersions nullable rhs
-       in map (\v -> (lhs, v)) versions
+      let versions = generateNullableVersions nullable rhs
+       in map (lhs,) versions
     else [(lhs, rhs)]
 
--- Function to generate versions of a production with and without nullable non-terminals
-generateVersions :: S.Set Symbol -> [Symbol] -> [[Symbol]]
-generateVersions nullable [] = [[]]
-generateVersions nullable (x : xs) =
-  if x `S.member` nullable
-    then
-      let restVersions = generateVersions nullable xs
-          withoutX = map (x :) restVersions
-          withX = map (\v -> if null v then xs else v) restVersions
-       in withX ++ withoutX
-    else map (x :) $ generateVersions nullable xs
+-- https://en.wikipedia.org/wiki/Chomsky_normal_form#DEL:_Eliminate_%CE%B5-rules
+removeEpsilonProductions :: CFG -> CFG
+removeEpsilonProductions cfg@(CFG {productions = oldProductions}) =
+  let nullableNonTerminals = findNullableNonTerminals cfg
+      newProductions = S.fromList . removeEmptyRules $ concatMap (inlineNullableProduction nullableNonTerminals) $ S.toList oldProductions
+      removeEmptyRules = filter (not . null . snd)
+   in cfg {productions = newProductions}
 
--- optimization
+rulesThatUseSym :: S.Set Production -> Symbol -> S.Set Production
+rulesThatUseSym oldProductions r = S.filter ((== r) . fst) oldProductions
 
--- inlineUnitRules :: CFG -> CFG
+renameRules :: Symbol -> S.Set Production -> S.Set Production
+renameRules name = S.map (Data.Bifunctor.first $ const name)
+
+-- https://en.wikipedia.org/wiki/Chomsky_normal_form#UNIT:_Eliminate_unit_rules
+inlineUnitRules :: CFG -> CFG
 inlineUnitRules cfg@(CFG {productions = oldProductions}) =
   let inlineChildren :: S.Set Production -> Production -> S.Set Production
       inlineChildren prods target =
@@ -134,12 +139,6 @@ inlineUnitRules cfg@(CFG {productions = oldProductions}) =
       newRules = S.map (inlineChildren oldProductions) unitRules
       ps = S.union (S.unions newRules) oldProductions S.\\ unitRules
    in if null unitRules then cfg else inlineUnitRules cfg {productions = ps}
-
-rulesThatUseSym :: S.Set Production -> Symbol -> S.Set Production
-rulesThatUseSym oldProductions r = S.filter ((== r) . fst) oldProductions
-
-renameRules :: Symbol -> S.Set Production -> S.Set Production
-renameRules name = S.map (Data.Bifunctor.first $ const name)
 
 -- Function to find all unit-productions in the grammar
 findUnitProductions :: S.Set Production -> S.Set Production
