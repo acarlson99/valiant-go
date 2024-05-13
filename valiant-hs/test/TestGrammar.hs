@@ -7,7 +7,8 @@ import Test.HUnit
 tests =
   [ testSplitProduction,
     testEliminateMoreThanTwoNonTerminals,
-    testRemoveEpsilonProductions
+    testRemoveEpsilonProductions,
+    testInlineUnitRules
   ]
 
 gramFromProds :: [Production] -> CFG
@@ -173,5 +174,28 @@ testRemoveEpsilonProductions =
             ("A", ["B"]),
             ("B", ["C"]),
             ("C", ["c"])
+          ]
+    ]
+
+testInlineUnitRules =
+  test
+    [ "Test chains are reduced"
+        ~: inlineUnitRules
+          ( gramFromProds
+              [ ("S", ["A", "b", "B"]),
+                ("S", ["b"]),
+                ("S", ["C"]),
+                ("A", ["a"]),
+                ("B", ["A"]),
+                ("C", ["b", "c"])
+              ]
+          )
+        ~?= gramFromProds
+          [ ("S", ["A", "b", "B"]),
+            ("S", ["b"]),
+            ("S", ["b", "c"]),
+            ("A", ["a"]),
+            ("B", ["a"]),
+            ("C", ["b", "c"])
           ]
     ]

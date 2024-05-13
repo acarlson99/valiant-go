@@ -1,6 +1,7 @@
 module Grammar.ContextFree where
 
 import Control.Monad
+import Data.Bifunctor qualified
 import Data.List (nub, subsequences)
 import Data.Set qualified as S
 
@@ -15,6 +16,20 @@ data CFG = CFG
     productions :: S.Set Production
   }
   deriving (Show)
+
+-- Add a production to the CFG
+addProduction :: CFG -> Production -> CFG
+addProduction cfg prod =
+  let newProductions = prod `S.insert` productions cfg
+      newNonTerms = S.map fst $ newProductions `S.union` productions cfg
+   in cfg {productions = newProductions, nonTerminals = newNonTerms}
+
+-- Remove a production from the CFG
+removeProduction :: CFG -> Production -> CFG
+removeProduction cfg prod =
+  let newProductions = prod `S.delete` productions cfg
+      newNonTerms = S.map fst newProductions
+   in cfg {productions = newProductions, nonTerminals = newNonTerms}
 
 instance Eq CFG where
   (CFG sa nta ta pa) == (CFG sb ntb tb pb) =
@@ -104,35 +119,42 @@ generateVersions nullable (x : xs) =
 
 -- optimization
 
--- Function to inline all eta-rules in the CFG
-inlineEtaRules :: CFG -> CFG
-inlineEtaRules cfg@(CFG {productions = oldProductions}) =
-  let etaProductions = findEtaProductions oldProductions
-      newProductions = foldr (inlineProduction oldProductions) oldProductions etaProductions
-   in cfg {productions = newProductions}
+-- inlineUnitRules :: CFG -> CFG
+inlineUnitRules cfg@(CFG {productions = oldProductions}) = inlineChildren oldProductions $ findUnitProductions oldProductions
 
--- Function to find all eta-productions in the grammar
-findEtaProductions :: S.Set Production -> S.Set Production
-findEtaProductions prods =
+inlineChildren :: S.Set Production -> S.Set Production -> S.Set [Production]
+inlineChildren prods targets =
+  let replacementPairs = S.map (\(lhs, rhs) -> ((lhs, rhs), concatMap (S.toList . rulesThatUseSym prods) rhs))
+   in S.map (uncurry (renameRules . fst)) $ replacementPairs targets
+
+rulesThatUseSym :: S.Set Production -> Symbol -> S.Set Production
+rulesThatUseSym oldProductions r = S.filter ((== r) . fst) oldProductions
+
+renameRules :: Symbol -> [Production] -> [Production]
+renameRules name = map (Data.Bifunctor.first $ const name)
+
+gfp :: S.Set Production -> CFG
+gfp prods =
+  CFG
+    { startSymbol = "S",
+      nonTerminals = nts,
+      terminals = (S.fromList $ concatMap (\(x, xs) -> x : xs) prods) S.\\ nts,
+      productions = prods
+    }
+  where
+    nts = S.map fst prods
+
+-- Function to find all unit-productions in the grammar
+findUnitProductions :: S.Set Production -> S.Set Production
+findUnitProductions prods =
   S.filter
-    (\(lhs, rhs) -> length rhs == 1 && head rhs `S.member` nonTerminals)
+    ( \x -> case x of
+        (_, [s]) -> s `S.member` nonTerminals
+        _ -> False
+    )
     prods
   where
     nonTerminals = S.map fst prods
-
--- Function to inline an eta-production into the CFG
-inlineProduction :: S.Set Production -> Production -> S.Set Production -> S.Set Production
-inlineProduction oldProductions (etaLHS, [etaRHS]) newProductions =
-  foldr (replaceAndInsert etaLHS etaRHS) newProductions $ S.toList $ S.filter (\(lhs, _) -> lhs == etaRHS) oldProductions
-  where
-    replaceAndInsert :: Symbol -> Symbol -> Production -> S.Set Production -> S.Set Production
-    replaceAndInsert etaLHS etaRHS (lhs, rhs) set =
-      let newProd = (lhs, replaceEta rhs)
-       in if lhs == etaLHS then set else S.insert newProd set
-    replaceEta :: [Symbol] -> [Symbol]
-    replaceEta [x] = [x]
-    replaceEta (x : xs) = if x == etaRHS then xs else x : xs
-    replaceEta [] = []
 
 -- Sample main function to test transformations
 main :: IO ()
