@@ -20,15 +20,6 @@ data MatrixN a where
 instance Functor MatrixN where
   fmap f (MatrixN n m) = MatrixN n $ fmap f m
 
--- instance Show a => Show (MatrixN a) where
---   show mn = case mn of (MatrixN n m) -> show m
-
--- TODO: this should split a matrix like so:
--- because `n` is always odd
--- n = (length(vec)-1) / 2
--- (as,rest) = splitN n vec
--- (x,bs) = splitN One rest
--- if bs =?= as then UpperRightTriangular (recurse as) (squareMatWithElemInBottomLeftCorner x) (recurse bs)
 vecNToValiantMatrixN :: a -> VecN a -> MatrixN a
 vecNToValiantMatrixN _ (VecN SZero VNil) = MatrixN SZero Empty
 vecNToValiantMatrixN e (VecN l xs) =

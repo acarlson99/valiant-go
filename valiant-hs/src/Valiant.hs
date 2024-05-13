@@ -33,6 +33,7 @@ bin :: (Valiant (Matrix n a)) => Matrix ('Succ n) a -> Matrix ('Succ n) a
 bin (UpperRightTriangularMatrix a t b) = UpperRightTriangularMatrix a (v a t b) b
 bin _ = undefined
 
+-- used for recursively calculating `v` for submatrices
 class (Valiant a) => RunV a where
   runV :: a -> a
 
@@ -43,32 +44,6 @@ instance (Ring a) => RunV (Matrix n a) where
         b' = runV b
      in UpperRightTriangularMatrix a' t' b'
   runV x = x
-
-__a :: Matrix ('Succ ('Succ ('Succ 'Zero))) (ProductionRules String String -> RingParse (Symbol String String))
-__a =
-  pure
-    <$> UpperRightTriangularMatrix
-      ( UpperRightTriangularMatrix
-          (UpperRightTriangularMatrix Empty (UnitMatrix a) Empty)
-          (SquareMatrix Empty Empty (UnitMatrix b) Empty)
-          (UpperRightTriangularMatrix Empty (UnitMatrix c) Empty)
-      )
-      ( SquareMatrix
-          Empty
-          Empty
-          (SquareMatrix Empty Empty (UnitMatrix d) Empty)
-          Empty
-      )
-      ( UpperRightTriangularMatrix
-          (UpperRightTriangularMatrix Empty (UnitMatrix e) Empty)
-          (SquareMatrix Empty Empty (UnitMatrix f) Empty)
-          (UpperRightTriangularMatrix Empty (UnitMatrix g) Empty)
-      )
-  where
-    [a, b, c, d, e, f, g] = opRing
-
--- [a, b, c, d, e, f, g] = [1 .. 7]
--- a `mul` ((b `mul` (c `mul` d)) `mul` (e `mul` (f `mul` g)))
 
 liftV :: (Ring a) => MatrixN a -> MatrixN a
 liftV (MatrixN n m) = MatrixN n $ runV m
@@ -94,7 +69,81 @@ symToTree (Terminal x) = T.Node (Right x) T.Empty T.Empty
 
 -- Just t = symToTree . head . S.toList . getSyms <$> (matrixTopRightMost . fmap ($ productionRules) $ runV __a)
 
--- topLevelParse :: (a ~ String, Ord a) => ProductionRules a a -> [a]  -> Maybe (T.Tree (Either a a))
+-- topLevelParse :: (a ~ String, Ord a) => ProductionRules a a -> [a] -> Maybe (T.Tree (Either a a))
 -- topLevelParse prs as =
 --   let mat = pure <$> vecNToValiantMatrixN $ listToVecN as
 --    in symToTree . head . S.toList . getSyms <$> (matrixTopRightMost . fmap ($ productionRules) $ runV mat)
+
+-- EXAMPLE
+
+-- productionRules :: ProductionRules String String
+-- productionRules =
+--   [ Binary "S" (Nonterminal "NP" []) (Nonterminal "VP" []),
+--     Binary "VP" (Nonterminal "VP" []) (Nonterminal "PP" []),
+--     Binary "VP" (Nonterminal "V" []) (Nonterminal "NP" []),
+--     Unary "VP" (Terminal "eats"),
+--     Binary "PP" (Nonterminal "P" []) (Nonterminal "NP" []),
+--     Binary "NP" (Nonterminal "Det" []) (Nonterminal "N" []),
+--     Unary "NP" (Terminal "she"),
+--     Unary "V" (Terminal "eats"),
+--     Unary "P" (Terminal "with"),
+--     Unary "N" (Terminal "fish"),
+--     Unary "N" (Terminal "fork"),
+--     Unary "Det" (Terminal "a")
+--   ]
+
+-- instance (a ~ Symbol String String) => Ring (RingParse a) where
+--   zero = RingParse mempty
+--   add (RingParse sa) (RingParse sb) = RingParse $ (<>) sa sb
+--   mul (RingParse x) (RingParse y) = RingParse $ foldr S.insert S.empty s
+--     where
+--       toL = foldr (:) []
+--       s = catMaybes [binApp a a_0 a_1 | a_0 <- toL x, a_1 <- toL y, a <- productionRules]
+
+-- syms = map Terminal $ words "she eats a fish with a fork"
+
+-- applyUnaryOp = catMaybes . (<$> productionRules) . flip unaryApp
+
+-- unaryOps = applyUnaryOp <$> syms
+
+-- opRing :: [RingParse (Symbol String String)]
+-- opRing = map (RingParse . S.fromList) unaryOps
+
+-- __f :: ProductionRules String String -> RingParse (Symbol String String)
+-- __f = const a `mul` const b
+--   where
+--     (a : b : _) = opRing
+
+-- -- [[a   ], [b], [c ], [d]]
+-- -- [[ab  ], [ ], [cd]]
+-- -- [[    ], [ ]]
+-- -- [[abcd]]
+-- applyBinOp :: (a ~ String) => [[Symbol a a]] -> ProductionRules a a -> [[Symbol a a]]
+-- applyBinOp syms productionRules =
+--   zipWith (\a b -> catMaybes $ binApp <$> productionRules <*> a <*> b) syms $ tail syms
+
+-- __a :: Matrix ('Succ ('Succ ('Succ 'Zero))) (ProductionRules String String -> RingParse (Symbol String String))
+-- __a =
+--   pure
+--     <$> UpperRightTriangularMatrix
+--       ( UpperRightTriangularMatrix
+--           (UpperRightTriangularMatrix Empty (UnitMatrix a) Empty)
+--           (SquareMatrix Empty Empty (UnitMatrix b) Empty)
+--           (UpperRightTriangularMatrix Empty (UnitMatrix c) Empty)
+--       )
+--       ( SquareMatrix
+--           Empty
+--           Empty
+--           (SquareMatrix Empty Empty (UnitMatrix d) Empty)
+--           Empty
+--       )
+--       ( UpperRightTriangularMatrix
+--           (UpperRightTriangularMatrix Empty (UnitMatrix e) Empty)
+--           (SquareMatrix Empty Empty (UnitMatrix f) Empty)
+--           (UpperRightTriangularMatrix Empty (UnitMatrix g) Empty)
+--       )
+--   where
+--     [a, b, c, d, e, f, g] = opRing
+
+-- -- [a, b, c, d, e, f, g] = [1 .. 7]
+-- -- a `mul` ((b `mul` (c `mul` d)) `mul` (e `mul` (f `mul` g)))

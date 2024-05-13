@@ -2,12 +2,10 @@
 {-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE GADTs #-}
-{-# LANGUAGE InstanceSigs #-}
 {-# LANGUAGE KindSignatures #-}
 {-# LANGUAGE MultiParamTypeClasses #-}
 {-# LANGUAGE RankNTypes #-}
 {-# LANGUAGE ScopedTypeVariables #-}
-{-# LANGUAGE TypeOperators #-}
 {-# LANGUAGE UndecidableInstances #-}
 
 module Vec where
@@ -16,7 +14,6 @@ import Data.Data
 import Data.Kind
 import Nat
 
--- TODO: add SNatl constraint??
 data Vec :: Nat -> Type -> Type where
   VNil :: Vec 'Zero a
   VCons :: (SNatl n) => a -> Vec n a -> Vec ('Succ n) a
@@ -66,6 +63,7 @@ instance (NatTypeToVal (Vec n a)) => NatTypeToVal (Vec ('Succ n) a) where
   natTypeToVal :: Vec ('Succ n) a -> Nat
   natTypeToVal (VCons _ xs) = Succ $ natTypeToVal xs
 
+-- split a vector at point `n` filling in a default value where necessary
 class VecSplitAt (n :: Nat) where
   vecSplitAt :: (SNatl n, SNatl m) => SNat n -> a -> Vec (m :: Nat) a -> (Vec n a, Vec (m - n) a)
 
@@ -86,8 +84,3 @@ instance SNatEq (Vec n a) (Vec m a) where
     Nothing -> Nothing
     Just Refl -> Just Refl
   _ =?= _ = Nothing
-
--- -- TODO: this-- prove to the compiler that n+m is good
--- vconcat :: Vec n a -> Vec m a -> Vec (m + n) a
--- vconcat VNil ys = ys
--- vconcat (VCons x xs) ys = VCons x $ vecAppend xs ys

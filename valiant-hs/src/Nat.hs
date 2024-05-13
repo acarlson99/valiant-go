@@ -45,8 +45,6 @@ instance TestEquality SNat where
   testEquality SZero SZero = Just Refl
   testEquality _ _ = Nothing
 
--- Refl <- snat @(Half (Half (ExpFour n))) :~: snat @n
-
 type family Max a b where
   Max 'Zero m = m
   Max m 'Zero = m
@@ -63,16 +61,6 @@ type family ExpTwo (n :: Nat) :: Nat where
 type family ExpFour (n :: Nat) :: Nat where
   ExpFour 'Zero = 'Succ 'Zero
   ExpFour ('Succ n) = Mul (Add Two Two) (ExpFour n)
-
--- helper :: SNat a :~: SNat a
--- helper = Refl
-
--- proof :: Half (ExpFour n) :~: ExpTwo n
--- proof = gcastWith Refl Refl
-
--- type family Sqrt (n :: Nat) :: Nat where
---   ExpTwo ('Succ 'Zero) = 'Zero
---   ExpTwo ('Succ n) = Mul Two (ExpTwo n) -- TODO: un-this
 
 type family Mul (m :: Nat) (n :: Nat) :: Nat where
   Mul m 'Zero = 'Zero
@@ -155,7 +143,6 @@ class SNatEq s t where
 instance SNatEq (SNat s) (SNat t) where
   SZero =?= SZero = Just Refl
   SSucc a =?= SSucc b =
-    -- (a =?= b) >>>=== (\c -> return Refl) -- this does not work
     case a =?= b of
       Nothing -> Nothing
       Just Refl -> Just Refl

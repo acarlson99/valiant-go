@@ -1,5 +1,7 @@
 module Grammar.ContextFree where
 
+-- This module is for converting a ContextFree grammar to Chomsky Normal Form
+
 import Control.Monad
 import Data.Bifunctor qualified
 import Data.List (nub, subsequences)

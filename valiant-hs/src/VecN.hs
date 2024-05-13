@@ -14,12 +14,6 @@ data VecN a where
 instance (Show n) => Show (VecN n) where
   show (VecN sn v) = show v ++ " l=" ++ show sn
 
--- instance Semigroup (VecN a) where
---   (<>) (VecN n x) (VecN m y) = VecN (n + m) $ x `vconcat` y
-
--- instance Monoid (VecN a) where
---   mempty = VecN snat VNil
-
 vecNAppend :: a -> VecN a -> VecN a
 vecNAppend a (VecN n v) = case n of
   SZero -> VecN (SSucc n) $ VCons a VNil
