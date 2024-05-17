@@ -70,14 +70,14 @@ splitProduction (lhs, rhs) =
        in (lhs, [head rhs, head newNonTerms]) : newProductions' ++ [finalProduction]
 
 splitPos :: Int -> Int
-splitPos = (^ 2) . (-) 1 . floor . logBase 2 . fromIntegral
+splitPos = (2 ^) . floor . subtract 1 . logBase 2 . fromIntegral
 
 splitProductionBalanced :: Production -> [Production]
 splitProductionBalanced (lhs, rhs)
   | length rhs <= 2 = [(lhs, rhs)]
   | otherwise =
-      -- let (firstHalf, secondHalf) = splitAt (splitPos $ length rhs) rhs
-      let (firstHalf, secondHalf) = splitAt (length rhs `div` 2) rhs
+      let (firstHalf, secondHalf) = splitAt (length rhs - splitPos (length rhs)) rhs
+          -- let (firstHalf, secondHalf) = splitAt (length rhs `div` 2) rhs
           leftNonTerm = lhs ++ "_L"
           rightNonTerm = lhs ++ "_R"
           newProductions = splitProductionBalanced (leftNonTerm, firstHalf) ++ splitProductionBalanced (rightNonTerm, secondHalf)
