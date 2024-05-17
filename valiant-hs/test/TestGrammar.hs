@@ -76,9 +76,9 @@ testEliminateMoreThanTwoNonTerminals =
           [ ("S", ["A", "B"]),
             ("A", ["a"]),
             ("B", ["b"]),
-            ("C", ["A", "C_1"]),
-            ("C_1", ["B", "C_2"]),
-            ("C_2", ["C", "D"])
+            ("C", ["C_L", "C_R"]),
+            ("C_L", ["A", "B"]),
+            ("C_R", ["C", "D"])
           ],
       "Test reducing non-terminals of length 6"
         ~: eliminateMoreThanTwoNonTerminals
@@ -94,14 +94,14 @@ testEliminateMoreThanTwoNonTerminals =
           [ ("S", ["A", "B"]),
             ("A", ["a"]),
             ("B", ["b"]),
-            ("C", ["A", "C_1"]),
-            ("C_1", ["B", "C_2"]),
-            ("C_2", ["C", "D"]),
-            ("D", ["E", "D_1"]),
-            ("D_1", ["F", "D_2"]),
-            ("D_2", ["G", "D_3"]),
-            ("D_3", ["H", "D_4"]),
-            ("D_4", ["I", "J"])
+            ("C", ["C_L", "C_R"]),
+            ("C_L", ["A", "B"]),
+            ("C_R", ["C", "D"]),
+            ("D", ["D_L", "D_R"]),
+            ("D_L", ["D_L_L", "D_L_R"]),
+            ("D_L_L", ["E", "F"]),
+            ("D_L_R", ["G", "H"]),
+            ("D_R", ["I", "J"])
           ]
     ]
 

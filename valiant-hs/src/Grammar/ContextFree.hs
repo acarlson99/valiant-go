@@ -69,12 +69,26 @@ splitProduction (lhs, rhs) =
           finalProduction = (last newNonTerms, [last (init rhs), last rhs])
        in (lhs, [head rhs, head newNonTerms]) : newProductions' ++ [finalProduction]
 
+splitPos :: Int -> Int
+splitPos = (^ 2) . (-) 1 . floor . logBase 2 . fromIntegral
+
+splitProductionBalanced :: Production -> [Production]
+splitProductionBalanced (lhs, rhs)
+  | length rhs <= 2 = [(lhs, rhs)]
+  | otherwise =
+      -- let (firstHalf, secondHalf) = splitAt (splitPos $ length rhs) rhs
+      let (firstHalf, secondHalf) = splitAt (length rhs `div` 2) rhs
+          leftNonTerm = lhs ++ "_L"
+          rightNonTerm = lhs ++ "_R"
+          newProductions = splitProductionBalanced (leftNonTerm, firstHalf) ++ splitProductionBalanced (rightNonTerm, secondHalf)
+       in (lhs, [leftNonTerm, rightNonTerm]) : newProductions
+
 -- https://en.wikipedia.org/wiki/Chomsky_normal_form#BIN:_Eliminate_right-hand_sides_with_more_than_2_nonterminals
 eliminateMoreThanTwoNonTerminals :: CFG -> CFG
 eliminateMoreThanTwoNonTerminals cfg@(CFG {productions = oldProductions}) =
   let toReplace :: [Production]
       toReplace = filter ((> 2) . length . snd) $ S.toList oldProductions
-      pairs = zip toReplace $ map splitProduction toReplace
+      pairs = zip toReplace $ map splitProductionBalanced toReplace
       ins :: [Production] -> S.Set Production -> S.Set Production
       ins ps s = foldr S.insert s ps
       prods = foldr (\(x, xs) prods -> ins xs $ x `S.delete` prods) oldProductions pairs
