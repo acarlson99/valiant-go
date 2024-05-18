@@ -15,7 +15,7 @@ data CFG = CFG
   { startSymbol :: Symbol,
     productions :: S.Set Production
   }
-  deriving (Show)
+  deriving (Show, Eq)
 
 nonTerminals :: CFG -> S.Set Symbol
 nonTerminals (CFG s ps) = S.map fst ps
@@ -30,28 +30,15 @@ symbols cfg@(CFG _ ps) = ruleSyms ps
 
 -- Add a production to the CFG
 addProduction :: CFG -> Production -> CFG
-addProduction cfg prod =
-  let newProductions = prod `S.insert` productions cfg
-      newNonTerms = S.map fst $ newProductions `S.union` productions cfg
-   in cfg {productions = newProductions}
+addProduction cfg prod = cfg {productions = prod `S.insert` productions cfg}
 
 -- Remove a production from the CFG
 removeProduction :: CFG -> Production -> CFG
-removeProduction cfg prod =
-  let newProductions = prod `S.delete` productions cfg
-      newNonTerms = S.map fst newProductions
-   in cfg {productions = newProductions}
-
-instance Eq CFG where
-  (CFG sa pa) == (CFG sb pb) =
-    and
-      [ sa == sb,
-        pa == pb
-      ]
+removeProduction cfg prod = cfg {productions = prod `S.delete` productions cfg}
 
 -- https://en.wikipedia.org/wiki/Chomsky_normal_form#START:_Eliminate_the_start_symbol_from_right-hand_sides
 eliminateStartSymbol :: CFG -> CFG
-eliminateStartSymbol cfg@(CFG {startSymbol = oldStart, productions = oldProductions}) =
+eliminateStartSymbol cfg@(CFG oldStart oldProductions) =
   CFG
     { startSymbol = newStart,
       productions = newProductions
@@ -59,9 +46,8 @@ eliminateStartSymbol cfg@(CFG {startSymbol = oldStart, productions = oldProducti
   where
     newStart = "S0" -- TODO: generalize
     newProductions = (newStart, [oldStart]) `S.insert` oldProductions
-    newNonTerminals = newStart `S.insert` nonTerminals cfg
 
--- TODO: `splitProduction` but in a tree shape instead of a list shape
+-- [("S", ["A", "B", "C", "D"])] -> [("S", ["A", "S_1"]), ("S_1", ["B", "S_2"]), ("S_2", ["C", "D"])]
 splitProduction :: Production -> [Production]
 splitProduction (lhs, rhs) =
   if length rhs <= 2
@@ -78,6 +64,7 @@ splitProduction (lhs, rhs) =
 closestSquareSmallerThan :: Int -> Int
 closestSquareSmallerThan = (2 ^) . floor . subtract 1 . logBase 2 . fromIntegral
 
+-- [("S", ["A", "B", "C", "D"])] -> [("S", ["S_1_L", "S_1_R"]), ("S_1_L", ["A", "B"]), ("S_1_R", ["C", "D"])]
 splitProductionBalanced :: Production -> [Production]
 splitProductionBalanced (lhs, rhs)
   | length rhs <= 2 = [(lhs, rhs)]
@@ -106,8 +93,9 @@ eliminateMoreThanTwoNonTerminals cfg@(CFG {productions = oldProductions}) =
     renameFirstRule name (x : xs) = Data.Bifunctor.first (const name) x : xs
     newRenamedProductions n (x, xs) = renameFirstRule x $ splitProductionBalanced (x ++ "_" ++ show n, xs)
 
+-- set of all nonTerminals that contain a rule that could be empty
 findNullableNonTerminals :: CFG -> S.Set Symbol
-findNullableNonTerminals (CFG {productions = prods}) =
+findNullableNonTerminals (CFG _ prods) =
   let nullableFromEpsilon = S.map fst $ S.filter (\(_, rhs) -> null rhs) prods
       closure s =
         let newNullable = S.filter (\(lhs, rhs) -> all (`S.member` s) rhs && lhs `S.notMember` s) prods
@@ -115,24 +103,18 @@ findNullableNonTerminals (CFG {productions = prods}) =
          in if S.null newNullable then s else closure updatedSet
    in closure nullableFromEpsilon
 
--- Function to generate versions of a production with and without nullable non-terminals
-generateNullableVersions :: S.Set Symbol -> [Symbol] -> [[Symbol]]
-generateNullableVersions _ [] = [[]]
-generateNullableVersions nullable (x : xs) =
-  if x `S.member` nullable
-    then
-      let restVersions = generateNullableVersions nullable xs
-          withoutX = map (x :) restVersions
-          withX = map (\v -> if null v then xs else v) restVersions
-       in withX ++ withoutX
-    else map (x :) $ generateNullableVersions nullable xs
+subsequencesByRemoving :: (Foldable t, Eq a) => t a -> [a] -> [[a]]
+subsequencesByRemoving _ [] = [[]]
+subsequencesByRemoving nullable (x : xs)
+  | x `elem` nullable = subsequencesByRemoving nullable xs ++ map (x :) (subsequencesByRemoving nullable xs)
+  | otherwise = map (x :) (subsequencesByRemoving nullable xs)
 
 -- Function to inline a single production to include versions with and without nullable non-terminals
 inlineNullableProduction :: S.Set Symbol -> Production -> [Production]
 inlineNullableProduction nullable (lhs, rhs) =
   if any (`S.member` nullable) rhs
     then
-      let versions = generateNullableVersions nullable rhs
+      let versions = subsequencesByRemoving nullable rhs
        in map (lhs,) versions
     else [(lhs, rhs)]
 
@@ -140,9 +122,25 @@ inlineNullableProduction nullable (lhs, rhs) =
 removeEpsilonProductions :: CFG -> CFG
 removeEpsilonProductions cfg@(CFG {productions = oldProductions}) =
   let nullableNonTerminals = findNullableNonTerminals cfg
-      newProductions = S.fromList . removeEmptyRules $ concatMap (inlineNullableProduction nullableNonTerminals) $ S.toList oldProductions
-      removeEmptyRules = filter (not . null . snd)
-   in cfg {productions = newProductions}
+      inlinedProductions :: S.Set Production
+      inlinedProductions = S.fromList . concatMap (inlineNullableProduction nullableNonTerminals) $ S.toList oldProductions
+      emptyProductionRules :: S.Set Production -> S.Set Production
+      emptyProductionRules = S.filter (null . snd)
+      nonEmptyProductionRules :: S.Set Production -> S.Set Production
+      nonEmptyProductionRules = S.filter (not . null . snd)
+      symsToDelete = S.map fst (emptyProductionRules inlinedProductions) S.\\ S.map fst (nonEmptyProductionRules inlinedProductions)
+      removeSymbolsWhichCannotBeNonEmpty :: S.Set Symbol -> S.Set Production -> S.Set Production
+      removeSymbolsWhichCannotBeNonEmpty syms = S.map (\(lhs, rhs) -> (,) lhs $ concatMap (\s -> ([s | s `notElem` syms])) rhs)
+      newProductions = removeSymbolsWhichCannotBeNonEmpty symsToDelete $ inlinedProductions S.\\ emptyProductionRules inlinedProductions
+      newCFG = cfg {productions = newProductions}
+   in if null nullableNonTerminals
+        then
+          ( if startSymbol cfg `notElem` nonTerminals newCFG
+              -- if `startSymbol` has no associated rules then the language must only accept an empty string
+              then addProduction cfg (startSymbol cfg, [])
+              else cfg
+          )
+        else removeEpsilonProductions newCFG
 
 rulesThatUseSym :: S.Set Production -> Symbol -> S.Set Production
 rulesThatUseSym oldProductions r = S.filter ((== r) . fst) oldProductions

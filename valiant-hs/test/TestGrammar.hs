@@ -24,32 +24,39 @@ testSplitProduction :: Test
 testSplitProduction =
   test
     [ "Split production"
-        ~: splitProduction ("S", ["A", "b", "B"])
+        ~: splitProduction
+          ("S", ["A", "b", "B"])
         ~?= [ ("S", ["A", "S_1"]),
               ("S_1", ["b", "B"])
             ],
       "Production with 0 non-terminals"
-        ~: splitProduction ("S", [])
+        ~: splitProduction
+          ("S", [])
         ~?= [("S", [])],
       "Production with 1 non-terminal"
-        ~: splitProduction ("S", ["A"])
+        ~: splitProduction
+          ("S", ["A"])
         ~?= [("S", ["A"])],
       "Production with 2 non-terminals"
-        ~: splitProduction ("S", ["A", "B"])
+        ~: splitProduction
+          ("S", ["A", "B"])
         ~?= [("S", ["A", "B"])],
       "Production with 3 non-terminals"
-        ~: splitProduction ("S", ["A", "B", "C"])
+        ~: splitProduction
+          ("S", ["A", "B", "C"])
         ~?= [ ("S", ["A", "S_1"]),
               ("S_1", ["B", "C"])
             ],
       "Production with 4 non-terminals"
-        ~: splitProduction ("S", ["A", "B", "C", "D"])
+        ~: splitProduction
+          ("S", ["A", "B", "C", "D"])
         ~?= [ ("S", ["A", "S_1"]),
               ("S_1", ["B", "S_2"]),
               ("S_2", ["C", "D"])
             ],
       "Production with 5 non-terminals"
-        ~: splitProduction ("S", ["A", "B", "C", "D", "E"])
+        ~: splitProduction
+          ("S", ["A", "B", "C", "D", "E"])
         ~?= [ ("S", ["A", "S_1"]),
               ("S_1", ["B", "S_2"]),
               ("S_2", ["C", "S_3"]),
@@ -60,149 +67,161 @@ testSplitProduction =
 -- Test cases for eliminateMoreThanTwoNonTerminals function
 testEliminateMoreThanTwoNonTerminals :: Test
 testEliminateMoreThanTwoNonTerminals =
-  TestList
-    [ "Test eliminating more than two non-terminals"
-        ~: eliminateMoreThanTwoNonTerminals
-          ( gramFromProds
+  let go = eliminateMoreThanTwoNonTerminals . gramFromProds
+   in TestList
+        [ "TestGeneric"
+            ~: go
+              [ ("S", ["A", "B", "C", "D"])
+              ]
+            ~?= gramFromProds
+              [ ("S", ["S_1_L", "S_1_R"]),
+                ("S_1_L", ["A", "B"]),
+                ("S_1_R", ["C", "D"])
+              ],
+          "Test eliminating more than two non-terminals"
+            ~: go
               [ ("S", ["A", "B"]),
                 ("A", ["a"]),
                 ("B", ["b"]),
                 ("C", ["A", "B", "C", "D"])
               ]
-          )
-        ~?= gramFromProds
-          [ ("S", ["A", "B"]),
-            ("A", ["a"]),
-            ("B", ["b"]),
-            ("C", ["C_1_L", "C_1_R"]),
-            ("C_1_L", ["A", "B"]),
-            ("C_1_R", ["C", "D"])
-          ],
-      "Test eliminating two rules with the same name does not conflict"
-        ~: eliminateMoreThanTwoNonTerminals
-          ( gramFromProds
+            ~?= gramFromProds
+              [ ("S", ["A", "B"]),
+                ("A", ["a"]),
+                ("B", ["b"]),
+                ("C", ["C_1_L", "C_1_R"]),
+                ("C_1_L", ["A", "B"]),
+                ("C_1_R", ["C", "D"])
+              ],
+          "Test eliminating two rules with the same name does not conflict"
+            ~: go
               [ ("S", ["C"]),
                 ("A", ["a"]),
                 ("B", ["b"]),
                 ("C", ["A", "B", "B", "A"]),
                 ("C", ["B", "A", "A", "A", "A", "B"])
               ]
-          )
-        ~?= gramFromProds
-          [ ("S", ["C"]),
-            ("A", ["a"]),
-            ("B", ["b"]),
-            ("C", ["C_1_L", "C_1_R"]),
-            ("C_1_L", ["A", "B"]),
-            ("C_1_R", ["B", "A"]),
-            ("C", ["C_2_L", "C_2_R"]),
-            ("C_2_L", ["C_2_L_L", "C_2_L_R"]),
-            ("C_2_L_L", ["B", "A"]),
-            ("C_2_L_R", ["A", "A"]),
-            ("C_2_R", ["A", "B"])
-          ],
-      "Test reducing non-terminals of length 6"
-        ~: eliminateMoreThanTwoNonTerminals
-          ( gramFromProds
+            ~?= gramFromProds
+              [ ("S", ["C"]),
+                ("A", ["a"]),
+                ("B", ["b"]),
+                ("C", ["C_1_L", "C_1_R"]),
+                ("C_1_L", ["A", "B"]),
+                ("C_1_R", ["B", "A"]),
+                ("C", ["C_2_L", "C_2_R"]),
+                ("C_2_L", ["C_2_L_L", "C_2_L_R"]),
+                ("C_2_L_L", ["B", "A"]),
+                ("C_2_L_R", ["A", "A"]),
+                ("C_2_R", ["A", "B"])
+              ],
+          "Test reducing non-terminals of length 6"
+            ~: go
               [ ("S", ["A", "B"]),
                 ("A", ["a"]),
                 ("B", ["b"]),
                 ("C", ["A", "B", "C", "D"]),
                 ("D", ["E", "F", "G", "H", "I", "J"])
               ]
-          )
-        ~?= gramFromProds
-          [ ("S", ["A", "B"]),
-            ("A", ["a"]),
-            ("B", ["b"]),
-            ("C", ["C_1_L", "C_1_R"]),
-            ("C_1_L", ["A", "B"]),
-            ("C_1_R", ["C", "D"]),
-            ("D", ["D_2_L", "D_2_R"]),
-            ("D_2_L", ["D_2_L_L", "D_2_L_R"]),
-            ("D_2_L_L", ["E", "F"]),
-            ("D_2_L_R", ["G", "H"]),
-            ("D_2_R", ["I", "J"])
-          ]
-    ]
+            ~?= gramFromProds
+              [ ("S", ["A", "B"]),
+                ("A", ["a"]),
+                ("B", ["b"]),
+                ("C", ["C_1_L", "C_1_R"]),
+                ("C_1_L", ["A", "B"]),
+                ("C_1_R", ["C", "D"]),
+                ("D", ["D_2_L", "D_2_R"]),
+                ("D_2_L", ["D_2_L_L", "D_2_L_R"]),
+                ("D_2_L_L", ["E", "F"]),
+                ("D_2_L_R", ["G", "H"]),
+                ("D_2_R", ["I", "J"])
+              ]
+        ]
 
 testRemoveEpsilonProductions :: Test
 testRemoveEpsilonProductions =
-  TestList
-    [ "Test 1"
-        ~: removeEpsilonProductions
-          ( gramFromProds
-              [ ("S", ["A", "b", "B"]),
+  let go = removeEpsilonProductions . gramFromProds
+   in TestList
+        [ "Test remove rule"
+            ~: go
+              [ ("S", ["A", "B"]),
                 ("S", ["C"]),
-                ("B", ["A", "A"]),
-                ("C", ["b", "c"]),
                 ("A", []),
-                ("A", ["a"])
+                ("A", ["a"]),
+                ("B", ["b"]),
+                ("C", ["c"])
               ]
-          )
-        ~?= gramFromProds
-          [ ("S", ["A", "b", "B"]),
-            ("S", ["A", "b"]),
-            ("S", ["b", "B"]),
-            ("S", ["b"]),
-            ("S", ["C"]),
-            ("B", ["A", "A"]),
-            ("B", ["A"]),
-            ("C", ["b", "c"]),
-            ("A", ["a"])
-          ],
-      "Test 2"
-        ~: removeEpsilonProductions
-          ( gramFromProds
+            ~?= gramFromProds
+              [ ("S", ["A", "B"]),
+                ("S", ["B"]),
+                ("S", ["C"]),
+                ("A", ["a"]),
+                ("B", ["b"]),
+                ("C", ["c"])
+              ],
+          "Test remove rule will all nullable children"
+            ~: go
               [ ("S", ["A", "b", "B"]),
                 ("S", ["C"]),
-                ("B", ["A", "A"]),
-                ("B", ["A", "C"]),
-                ("C", ["b"]),
-                ("C", ["c"]),
+                ("A", []),
                 ("A", ["a"]),
-                ("A", [])
+                ("B", ["A", "A"]),
+                ("C", ["b", "c"])
               ]
-          )
-        ~?= gramFromProds
-          [ ("S", ["A", "b", "B"]),
-            ("S", ["A", "b"]),
-            ("S", ["b", "B"]),
-            ("S", ["b"]),
-            ("S", ["C"]),
-            ("B", ["A", "A"]),
-            ("B", ["A", "C"]),
-            ("B", ["A"]),
-            ("B", ["C"]),
-            ("C", ["b"]),
-            ("C", ["c"]),
-            ("A", ["a"])
-          ],
-      "test chaining"
-        ~: removeEpsilonProductions
-          ( gramFromProds
+            ~?= gramFromProds
+              [ ("S", ["A", "b", "B"]),
+                ("S", ["A", "b"]),
+                ("S", ["b", "B"]),
+                ("S", ["b"]),
+                ("S", ["C"]),
+                ("A", ["a"]),
+                ("B", ["A", "A"]),
+                ("B", ["A"]),
+                ("C", ["b", "c"])
+              ],
+          "Test removes all children and not start symbol when all empty"
+            ~: go
+              [ ("S", ["A", "B", "C"]),
+                ("A", []),
+                ("B", []),
+                ("C", [])
+              ]
+            ~?= gramFromProds
+              [ ("S", [])
+              ],
+          "test chaining"
+            ~: go
               [ ("S", ["A", "b"]),
                 ("A", ["B", "B"]),
                 ("B", ["C"]),
                 ("C", ["c"]),
                 ("C", [])
               ]
-          )
-        ~?= gramFromProds
-          [ ("S", ["A", "b"]),
-            ("S", ["b"]),
-            ("A", ["B", "B"]),
-            ("A", ["B"]),
-            ("B", ["C"]),
-            ("C", ["c"])
-          ]
-    ]
+            ~?= gramFromProds
+              [ ("S", ["A", "b"]),
+                ("S", ["b"]),
+                ("A", ["B", "B"]),
+                ("A", ["B"]),
+                ("B", ["C"]),
+                ("C", ["c"])
+              ],
+          "test removes completely empty rules"
+            ~: go
+              [ ("S", ["A", "B"]),
+                ("A", ["a"]),
+                ("B", ["C", "C"]),
+                ("C", [])
+              ]
+            ~?= gramFromProds
+              [ ("S", ["A"]),
+                ("A", ["a"])
+              ]
+        ]
 
 testInlineUnitRules =
-  test
-    [ "Test normal reduction"
-        ~: inlineUnitRules
-          ( gramFromProds
+  let go = inlineUnitRules . gramFromProds
+   in test
+        [ "Test normal reduction"
+            ~: go
               [ ("S", ["A", "b", "B"]),
                 ("S", ["b"]),
                 ("S", ["C"]),
@@ -210,31 +229,28 @@ testInlineUnitRules =
                 ("B", ["A"]),
                 ("C", ["b", "c"])
               ]
-          )
-        ~?= gramFromProds
-          [ ("S", ["A", "b", "B"]),
-            ("S", ["b"]),
-            ("S", ["b", "c"]),
-            ("A", ["a"]),
-            ("B", ["a"]),
-            ("C", ["b", "c"])
-          ],
-      "Test chains are fully reduced"
-        ~: inlineUnitRules
-          ( gramFromProds
+            ~?= gramFromProds
+              [ ("S", ["A", "b", "B"]),
+                ("S", ["b"]),
+                ("S", ["b", "c"]),
+                ("A", ["a"]),
+                ("B", ["a"]),
+                ("C", ["b", "c"])
+              ],
+          "Test chains are fully reduced"
+            ~: go
               [ ("S", ["A"]),
                 ("A", ["B"]),
                 ("B", ["C"]),
                 ("C", ["c"])
               ]
-          )
-        ~?= gramFromProds
-          [ ("S", ["c"]),
-            ("A", ["c"]),
-            ("B", ["c"]),
-            ("C", ["c"])
-          ]
-    ]
+            ~?= gramFromProds
+              [ ("S", ["c"]),
+                ("A", ["c"]),
+                ("B", ["c"]),
+                ("C", ["c"])
+              ]
+        ]
 
 -- https://en.wikipedia.org/wiki/Chomsky_normal_form#Example
 wikiExample :: [Production]
