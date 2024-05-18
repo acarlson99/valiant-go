@@ -10,34 +10,42 @@ type Symbol = String
 
 type Production = (Symbol, [Symbol])
 
+-- TODO: rewrite structure to only contain startSymbol and productions
 data CFG = CFG
   { startSymbol :: Symbol,
-    nonTerminals :: S.Set Symbol,
-    terminals :: S.Set Symbol,
     productions :: S.Set Production
   }
   deriving (Show)
+
+nonTerminals :: CFG -> S.Set Symbol
+nonTerminals (CFG s ps) = S.map fst ps
+
+terminals :: CFG -> S.Set Symbol
+terminals cfg = symbols cfg S.\\ nonTerminals cfg
+
+symbols :: CFG -> S.Set Symbol
+symbols cfg@(CFG _ ps) = ruleSyms ps
+  where
+    ruleSyms = S.fold (S.union . S.fromList . snd) (nonTerminals cfg)
 
 -- Add a production to the CFG
 addProduction :: CFG -> Production -> CFG
 addProduction cfg prod =
   let newProductions = prod `S.insert` productions cfg
       newNonTerms = S.map fst $ newProductions `S.union` productions cfg
-   in cfg {productions = newProductions, nonTerminals = newNonTerms}
+   in cfg {productions = newProductions}
 
 -- Remove a production from the CFG
 removeProduction :: CFG -> Production -> CFG
 removeProduction cfg prod =
   let newProductions = prod `S.delete` productions cfg
       newNonTerms = S.map fst newProductions
-   in cfg {productions = newProductions, nonTerminals = newNonTerms}
+   in cfg {productions = newProductions}
 
 instance Eq CFG where
-  (CFG sa nta ta pa) == (CFG sb ntb tb pb) =
+  (CFG sa pa) == (CFG sb pb) =
     and
       [ sa == sb,
-        nta == ntb,
-        ta == tb,
         pa == pb
       ]
 
@@ -46,8 +54,6 @@ eliminateStartSymbol :: CFG -> CFG
 eliminateStartSymbol cfg@(CFG {startSymbol = oldStart, productions = oldProductions}) =
   CFG
     { startSymbol = newStart,
-      nonTerminals = newNonTerminals,
-      terminals = terminals cfg,
       productions = newProductions
     }
   where
@@ -92,7 +98,7 @@ eliminateMoreThanTwoNonTerminals cfg@(CFG {productions = oldProductions}) =
       ins :: [Production] -> S.Set Production -> S.Set Production
       ins ps s = foldr S.insert s ps
       prods = foldr (\(x, xs) prods -> ins xs $ x `S.delete` prods) oldProductions pairs
-   in cfg {nonTerminals = S.map fst prods, productions = prods}
+   in cfg {productions = prods}
 
 findNullableNonTerminals :: CFG -> S.Set Symbol
 findNullableNonTerminals (CFG {productions = prods}) =
@@ -174,8 +180,6 @@ main = do
   let grammar =
         CFG
           { startSymbol = "S",
-            nonTerminals = S.fromList ["S", "A", "B", "C"],
-            terminals = S.fromList ["a", "b", "c"],
             productions =
               S.fromList
                 [ ("S", ["A", "b", "B"]),
