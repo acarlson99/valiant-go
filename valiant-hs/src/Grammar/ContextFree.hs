@@ -94,7 +94,7 @@ eliminateMoreThanTwoNonTerminals :: CFG -> CFG
 eliminateMoreThanTwoNonTerminals cfg@(CFG {productions = oldProductions}) =
   let toReplace :: [Production]
       toReplace = filter ((> 2) . length . snd) $ S.toList oldProductions
-      pairs = zip toReplace $ map splitProductionBalanced toReplace
+      pairs = zip toReplace $ zipWith (\a (x, xs) -> splitProductionBalanced (x ++ "_" ++ show a, xs)) [1 :: Int ..] toReplace
       ins :: [Production] -> S.Set Production -> S.Set Production
       ins ps s = foldr S.insert s ps
       prods = foldr (\(x, xs) prods -> ins xs $ x `S.delete` prods) oldProductions pairs

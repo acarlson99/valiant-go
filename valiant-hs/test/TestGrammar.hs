@@ -15,8 +15,6 @@ gramFromProds :: [Production] -> CFG
 gramFromProds prods =
   CFG
     { startSymbol = fst $ head prods,
-      nonTerminals = nts,
-      terminals = (S.fromList $ concatMap (\(x, xs) -> x : xs) prods) S.\\ nts,
       productions = S.fromList prods
     }
   where
@@ -79,6 +77,29 @@ testEliminateMoreThanTwoNonTerminals =
             ("C", ["C_L", "C_R"]),
             ("C_L", ["A", "B"]),
             ("C_R", ["C", "D"])
+          ],
+      "Test eliminating two rules with the same name does not conflict"
+        ~: eliminateMoreThanTwoNonTerminals
+          ( gramFromProds
+              [ ("S", ["C"]),
+                ("A", ["a"]),
+                ("B", ["b"]),
+                ("C", ["A", "B", "B", "A"]),
+                ("C", ["B", "A", "A", "A", "A", "B"])
+              ]
+          )
+        ~?= gramFromProds
+          [ ("S", ["C"]),
+            ("A", ["a"]),
+            ("B", ["b"]),
+            ("C_1", ["C_1_L", "C_1_R"]),
+            ("C_1_L", ["A", "B"]),
+            ("C_1_R", ["B", "A"]),
+            ("C_2", ["C_2_L", "C_2_R"]),
+            ("C_2_L", ["C_2_L_L", "C_2_L_R"]),
+            ("C_2_L_L", ["B", "A"]),
+            ("C_2_L_R", ["A", "A"]),
+            ("C_2_R", ["A", "B"])
           ],
       "Test reducing non-terminals of length 6"
         ~: eliminateMoreThanTwoNonTerminals
