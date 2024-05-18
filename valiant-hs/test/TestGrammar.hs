@@ -74,9 +74,9 @@ testEliminateMoreThanTwoNonTerminals =
           [ ("S", ["A", "B"]),
             ("A", ["a"]),
             ("B", ["b"]),
-            ("C", ["C_L", "C_R"]),
-            ("C_L", ["A", "B"]),
-            ("C_R", ["C", "D"])
+            ("C", ["C_1_L", "C_1_R"]),
+            ("C_1_L", ["A", "B"]),
+            ("C_1_R", ["C", "D"])
           ],
       "Test eliminating two rules with the same name does not conflict"
         ~: eliminateMoreThanTwoNonTerminals
@@ -92,10 +92,10 @@ testEliminateMoreThanTwoNonTerminals =
           [ ("S", ["C"]),
             ("A", ["a"]),
             ("B", ["b"]),
-            ("C_1", ["C_1_L", "C_1_R"]),
+            ("C", ["C_1_L", "C_1_R"]),
             ("C_1_L", ["A", "B"]),
             ("C_1_R", ["B", "A"]),
-            ("C_2", ["C_2_L", "C_2_R"]),
+            ("C", ["C_2_L", "C_2_R"]),
             ("C_2_L", ["C_2_L_L", "C_2_L_R"]),
             ("C_2_L_L", ["B", "A"]),
             ("C_2_L_R", ["A", "A"]),
@@ -115,14 +115,14 @@ testEliminateMoreThanTwoNonTerminals =
           [ ("S", ["A", "B"]),
             ("A", ["a"]),
             ("B", ["b"]),
-            ("C", ["C_L", "C_R"]),
-            ("C_L", ["A", "B"]),
-            ("C_R", ["C", "D"]),
-            ("D", ["D_L", "D_R"]),
-            ("D_L", ["D_L_L", "D_L_R"]),
-            ("D_L_L", ["E", "F"]),
-            ("D_L_R", ["G", "H"]),
-            ("D_R", ["I", "J"])
+            ("C", ["C_1_L", "C_1_R"]),
+            ("C_1_L", ["A", "B"]),
+            ("C_1_R", ["C", "D"]),
+            ("D", ["D_2_L", "D_2_R"]),
+            ("D_2_L", ["D_2_L_L", "D_2_L_R"]),
+            ("D_2_L_L", ["E", "F"]),
+            ("D_2_L_R", ["G", "H"]),
+            ("D_2_R", ["I", "J"])
           ]
     ]
 

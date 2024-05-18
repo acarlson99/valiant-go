@@ -75,15 +75,16 @@ splitProduction (lhs, rhs) =
           finalProduction = (last newNonTerms, [last (init rhs), last rhs])
        in (lhs, [head rhs, head newNonTerms]) : newProductions' ++ [finalProduction]
 
-splitPos :: Int -> Int
-splitPos = (2 ^) . floor . subtract 1 . logBase 2 . fromIntegral
+closestSquareSmallerThan :: Int -> Int
+closestSquareSmallerThan = (2 ^) . floor . subtract 1 . logBase 2 . fromIntegral
 
 splitProductionBalanced :: Production -> [Production]
 splitProductionBalanced (lhs, rhs)
   | length rhs <= 2 = [(lhs, rhs)]
   | otherwise =
-      let (firstHalf, secondHalf) = splitAt (length rhs - splitPos (length rhs)) rhs
-          -- let (firstHalf, secondHalf) = splitAt (length rhs `div` 2) rhs
+      let -- splitPos = length rhs `div` 2
+          splitPos = length rhs - closestSquareSmallerThan (length rhs)
+          (firstHalf, secondHalf) = splitAt splitPos rhs
           leftNonTerm = lhs ++ "_L"
           rightNonTerm = lhs ++ "_R"
           newProductions = splitProductionBalanced (leftNonTerm, firstHalf) ++ splitProductionBalanced (rightNonTerm, secondHalf)
@@ -94,11 +95,16 @@ eliminateMoreThanTwoNonTerminals :: CFG -> CFG
 eliminateMoreThanTwoNonTerminals cfg@(CFG {productions = oldProductions}) =
   let toReplace :: [Production]
       toReplace = filter ((> 2) . length . snd) $ S.toList oldProductions
-      pairs = zip toReplace $ zipWith (\a (x, xs) -> splitProductionBalanced (x ++ "_" ++ show a, xs)) [1 :: Int ..] toReplace
-      ins :: [Production] -> S.Set Production -> S.Set Production
-      ins ps s = foldr S.insert s ps
-      prods = foldr (\(x, xs) prods -> ins xs $ x `S.delete` prods) oldProductions pairs
+      pairs :: [(Production, [Production])]
+      pairs = zipWith (\old n -> (,) old $ newRenamedProductions n old) toReplace [1 :: Int ..]
+      updateRule (old, newS) = (flip $ foldr S.insert) newS . S.delete old
+      prods = foldr updateRule oldProductions pairs
    in cfg {productions = prods}
+  where
+    renameFirstRule :: Symbol -> [Production] -> [Production]
+    renameFirstRule _ [] = []
+    renameFirstRule name (x : xs) = Data.Bifunctor.first (const name) x : xs
+    newRenamedProductions n (x, xs) = renameFirstRule x $ splitProductionBalanced (x ++ "_" ++ show n, xs)
 
 findNullableNonTerminals :: CFG -> S.Set Symbol
 findNullableNonTerminals (CFG {productions = prods}) =
