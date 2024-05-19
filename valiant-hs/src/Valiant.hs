@@ -6,6 +6,7 @@ module Valiant where
 
 import Data.Maybe
 import Data.Set qualified as S
+import Grammar.Chomsky
 import MatrixN
 import Nat
 import Ring
