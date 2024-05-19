@@ -196,6 +196,7 @@ findUnitProductions prods =
   where
     nonTerminals = S.map fst prods
 
+toChomskyReducedForm :: CFG -> CFG
 toChomskyReducedForm =
   eliminateUnitRules
     . removeEpsilonRules
@@ -204,13 +205,14 @@ toChomskyReducedForm =
     . eliminateStartSymbol
 
 -- TODO: add `chomskyReducedForm` to check if grammar is correct
-isChomskyReducedForm cfg@(CFG x xs) =
-  let ss = S.toList xs
-      fn ps = case snd ps of
-        [sym] -> sym `elem` terminals cfg
-        [a, b] -> all (`elem` nonTerminals cfg) [a, b]
-        _ -> False
-   in all fn ss
+isChomskyReducedForm :: CFG -> Bool
+isChomskyReducedForm cfg@(CFG x xs) = all (isReduced cfg) $ S.toList xs
+
+isReduced :: CFG -> Production -> Bool
+isReduced cfg ps = case snd ps of
+  [sym] -> sym `elem` terminals cfg
+  [a, b] -> all (`elem` nonTerminals cfg) [a, b]
+  _ -> False
 
 -- Sample main function to test transformations
 main :: IO ()

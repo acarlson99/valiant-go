@@ -2,6 +2,7 @@ module TestGrammar where
 
 import Data.Set qualified as S
 import Grammar.ContextFree
+import Grammar.ContextFree (isChomskyReducedForm)
 import Test.HUnit
 
 tests =
@@ -10,7 +11,8 @@ tests =
     testEliminateMoreThanTwoNonTerminals,
     testRemoveEpsilonRules,
     testEliminateUnitRules,
-    testWikiExample
+    testWikiExample,
+    testIsChomskyReduced
   ]
 
 gramFromProds :: [Production] -> CFG
@@ -19,8 +21,6 @@ gramFromProds prods =
     { startSymbol = fst $ head prods,
       productions = S.fromList prods
     }
-  where
-    nts = S.fromList $ map fst prods
 
 testEliminateRulesWithNonsolitaryTerminals :: Test
 testEliminateRulesWithNonsolitaryTerminals =
@@ -476,8 +476,45 @@ testWikiExample =
             ("T_-", ["-"]),
             ("T_/", ["/"]),
             ("T_^", ["^"])
-          ],
-      "Test isChomskyReduced"
-        ~: (isChomskyReducedForm . toChomskyReducedForm) wikiExample
-        ~?= True
+          ]
     ]
+
+testIsChomskyReduced =
+  let goGram = isChomskyReducedForm . gramFromProds
+   in test
+        [ "Test 1 terminal passes"
+            ~: goGram [("S", ["a"])]
+            ~?= True,
+          "Test 1 nonterminal fails"
+            ~: goGram
+              [ ("S", ["A"]),
+                ("A", ["a"])
+              ]
+            ~?= False,
+          "Test 2 terminals fails"
+            ~: goGram
+              [ ("S", ["a", "b"])
+              ]
+            ~?= False,
+          "Test 2 nonterminals passes"
+            ~: goGram
+              [ ("S", ["A", "B"]),
+                ("A", ["a"]),
+                ("B", ["b"])
+              ]
+            ~?= True,
+          "Test 3+ nonterminals fails"
+            ~: goGram
+              [ ("S", ["A", "B", "C"]),
+                ("A", ["a"]),
+                ("B", ["b"]),
+                ("C", ["c"])
+              ]
+            ~?= False,
+          "Test isChomskyReduced"
+            ~: (isChomskyReducedForm . toChomskyReducedForm) wikiExample
+            ~?= True,
+          "Test isChomskyReduced should fail on non-reduced form"
+            ~: isChomskyReducedForm wikiExample
+            ~?= False
+        ]
