@@ -5,10 +5,12 @@ import Grammar.ContextFree
 import Test.HUnit
 
 tests =
-  [ testSplitProduction,
+  [ testEliminateRulesWithNonsolitaryTerminals,
+    testSplitProduction,
     testEliminateMoreThanTwoNonTerminals,
-    testRemoveEpsilonProductions,
-    testInlineUnitRules
+    testRemoveEpsilonRules,
+    testEliminateUnitRules,
+    testWikiExample
   ]
 
 gramFromProds :: [Production] -> CFG
@@ -19,6 +21,20 @@ gramFromProds prods =
     }
   where
     nts = S.fromList $ map fst prods
+
+testEliminateRulesWithNonsolitaryTerminals :: Test
+testEliminateRulesWithNonsolitaryTerminals =
+  let go = eliminateRulesWithNonsolitaryTerminals . gramFromProds
+   in TestList
+        [ "Test generic"
+            ~: go
+              [ ("S", ["a", "S"])
+              ]
+            ~?= gramFromProds
+              [ ("S", ["T_a", "S"]),
+                ("T_a", ["a"])
+              ]
+        ]
 
 testSplitProduction :: Test
 testSplitProduction =
@@ -137,9 +153,9 @@ testEliminateMoreThanTwoNonTerminals =
               ]
         ]
 
-testRemoveEpsilonProductions :: Test
-testRemoveEpsilonProductions =
-  let go = removeEpsilonProductions . gramFromProds
+testRemoveEpsilonRules :: Test
+testRemoveEpsilonRules =
+  let go = removeEpsilonRules . gramFromProds
    in TestList
         [ "Test remove rule"
             ~: go
@@ -217,8 +233,8 @@ testRemoveEpsilonProductions =
               ]
         ]
 
-testInlineUnitRules =
-  let go = inlineUnitRules . gramFromProds
+testEliminateUnitRules =
+  let go = eliminateUnitRules . gramFromProds
    in test
         [ "Test normal reduction"
             ~: go
@@ -249,23 +265,213 @@ testInlineUnitRules =
                 ("A", ["c"]),
                 ("B", ["c"]),
                 ("C", ["c"])
+              ],
+          "Test eliminations do not reduce to level of nonterminals"
+            ~: go
+              [ ("S", ["A", "B"]),
+                ("A", ["C"]),
+                ("B", ["b"]),
+                ("C", ["c"])
+              ]
+            ~?= gramFromProds
+              [ ("S", ["A", "B"]),
+                ("A", ["c"]),
+                ("B", ["b"]),
+                ("C", ["c"])
               ]
         ]
 
 -- https://en.wikipedia.org/wiki/Chomsky_normal_form#Example
-wikiExample :: [Production]
+wikiExample :: CFG
 wikiExample =
-  [ ("Expr", ["Term"]),
-    ("Expr", ["Expr", "AddOp", "Term"]),
-    ("Expr", ["AddOp", "Term"]),
-    ("Term", ["Factor"]),
-    ("Term", ["Term", "MulOp", "Factor"]),
-    ("Factor", ["Primary"]),
-    ("Factor", ["Factor", "^", "Primary"]),
-    ("Primary", ["number", "variable"]),
-    ("Primary", ["(", "Expr", ")"]),
-    ("AddOp", ["+"]),
-    ("AddOp", ["-"]),
-    ("MulOp", ["*"]),
-    ("MulOp", ["/"])
-  ]
+  gramFromProds
+    [ ("Expr", ["Term"]),
+      ("Expr", ["Expr", "AddOp", "Term"]),
+      ("Expr", ["AddOp", "Term"]),
+      ("Term", ["Factor"]),
+      ("Term", ["Term", "MulOp", "Factor"]),
+      ("Factor", ["Primary"]),
+      ("Factor", ["Factor", "^", "Primary"]),
+      ("Primary", ["number"]),
+      ("Primary", ["variable"]),
+      ("Primary", ["(", "Expr", ")"]),
+      ("AddOp", ["+"]),
+      ("AddOp", ["-"]),
+      ("MulOp", ["*"]),
+      ("MulOp", ["/"])
+    ]
+
+testWikiExample :: Test
+testWikiExample =
+  TestList
+    [ "Test START"
+        ~: eliminateStartSymbol wikiExample
+        ~?= gramFromProds
+          [ ("S0", ["Expr"]),
+            ("Expr", ["Term"]),
+            ("Expr", ["Expr", "AddOp", "Term"]),
+            ("Expr", ["AddOp", "Term"]),
+            ("Term", ["Factor"]),
+            ("Term", ["Term", "MulOp", "Factor"]),
+            ("Factor", ["Primary"]),
+            ("Factor", ["Factor", "^", "Primary"]),
+            ("Primary", ["number"]),
+            ("Primary", ["variable"]),
+            ("Primary", ["(", "Expr", ")"]),
+            ("AddOp", ["+"]),
+            ("AddOp", ["-"]),
+            ("MulOp", ["*"]),
+            ("MulOp", ["/"])
+          ],
+      "Test TERM"
+        ~: (eliminateRulesWithNonsolitaryTerminals . eliminateStartSymbol) wikiExample
+        ~?= gramFromProds
+          [ ("S0", ["Expr"]),
+            ("Expr", ["Term"]),
+            ("Expr", ["Expr", "AddOp", "Term"]),
+            ("Expr", ["AddOp", "Term"]),
+            ("Term", ["Factor"]),
+            ("Term", ["Term", "MulOp", "Factor"]),
+            ("Factor", ["Primary"]),
+            ("Factor", ["Factor", "T_^", "Primary"]),
+            ("Primary", ["T_number"]),
+            ("T_number", ["number"]),
+            ("Primary", ["T_variable"]),
+            ("T_variable", ["variable"]),
+            ("Primary", ["T_(", "Expr", "T_)"]),
+            ("AddOp", ["T_+"]),
+            ("T_+", ["+"]),
+            ("AddOp", ["T_-"]),
+            ("T_-", ["-"]),
+            ("MulOp", ["T_*"]),
+            ("T_*", ["*"]),
+            ("MulOp", ["T_/"]),
+            ("T_/", ["/"]),
+            ("T_(", ["("]),
+            ("T_)", [")"]),
+            ("T_^", ["^"])
+          ],
+      "Test BIN"
+        ~: ( eliminateMoreThanTwoNonTerminals
+               . eliminateRulesWithNonsolitaryTerminals
+               . eliminateStartSymbol
+           )
+          wikiExample
+        ~?= gramFromProds
+          [ ("S0", ["Expr"]),
+            ("Expr", ["Term"]),
+            ("Expr", ["Expr_1_L", "Expr_1_R"]),
+            ("Expr_1_L", ["Expr", "AddOp"]),
+            ("Expr_1_R", ["Term"]),
+            ("Expr", ["AddOp", "Term"]),
+            ("Term", ["Factor"]),
+            ("Term", ["Term_4_L", "Term_4_R"]),
+            ("Term_4_L", ["Term", "MulOp"]),
+            ("Term_4_R", ["Factor"]),
+            ("Factor", ["Primary"]),
+            ("Factor", ["Factor_2_L", "Factor_2_R"]),
+            ("Factor_2_L", ["Factor", "T_^"]),
+            ("Factor_2_R", ["Primary"]),
+            ("Primary", ["T_number"]),
+            ("T_number", ["number"]),
+            ("Primary", ["T_variable"]),
+            ("T_variable", ["variable"]),
+            ("Primary", ["Primary_3_L", "Primary_3_R"]),
+            ("Primary_3_L", ["T_(", "Expr"]),
+            ("Primary_3_R", ["T_)"]),
+            ("AddOp", ["T_+"]),
+            ("T_+", ["+"]),
+            ("AddOp", ["T_-"]),
+            ("T_-", ["-"]),
+            ("MulOp", ["T_*"]),
+            ("T_*", ["*"]),
+            ("MulOp", ["T_/"]),
+            ("T_/", ["/"]),
+            ("T_(", ["("]),
+            ("T_)", [")"]),
+            ("T_^", ["^"])
+          ],
+      "Test DEL"
+        ~: ( removeEpsilonRules
+               . eliminateMoreThanTwoNonTerminals
+               . eliminateRulesWithNonsolitaryTerminals
+               . eliminateStartSymbol
+           )
+          wikiExample
+        ~?= gramFromProds
+          [ ("S0", ["Expr"]),
+            ("Expr", ["Term"]),
+            ("Expr", ["Expr_1_L", "Expr_1_R"]),
+            ("Expr_1_L", ["Expr", "AddOp"]),
+            ("Expr_1_R", ["Term"]),
+            ("Expr", ["AddOp", "Term"]),
+            ("Term", ["Factor"]),
+            ("Term", ["Term_4_L", "Term_4_R"]),
+            ("Term_4_L", ["Term", "MulOp"]),
+            ("Term_4_R", ["Factor"]),
+            ("Factor", ["Primary"]),
+            ("Factor", ["Factor_2_L", "Factor_2_R"]),
+            ("Factor_2_L", ["Factor", "T_^"]),
+            ("Factor_2_R", ["Primary"]),
+            ("Primary", ["T_number"]),
+            ("T_number", ["number"]),
+            ("Primary", ["T_variable"]),
+            ("T_variable", ["variable"]),
+            ("Primary", ["Primary_3_L", "Primary_3_R"]),
+            ("Primary_3_L", ["T_(", "Expr"]),
+            ("Primary_3_R", ["T_)"]),
+            ("AddOp", ["T_+"]),
+            ("T_+", ["+"]),
+            ("AddOp", ["T_-"]),
+            ("T_-", ["-"]),
+            ("MulOp", ["T_*"]),
+            ("T_*", ["*"]),
+            ("MulOp", ["T_/"]),
+            ("T_/", ["/"]),
+            ("T_(", ["("]),
+            ("T_)", [")"]),
+            ("T_^", ["^"])
+          ],
+      "Test UNIT"
+        ~: ( eliminateUnitRules
+               . removeEpsilonRules
+               . eliminateMoreThanTwoNonTerminals
+               . eliminateRulesWithNonsolitaryTerminals
+               . eliminateStartSymbol
+           )
+          wikiExample
+        ~?= gramFromProds
+          [ ("S0", ["Expr"]),
+            ("Expr", ["Term"]),
+            ("Expr", ["Expr_1_L", "Expr_1_R"]),
+            ("Expr_1_L", ["Expr", "AddOp"]),
+            ("Expr_1_R", ["Term"]),
+            ("Expr", ["AddOp", "Term"]),
+            ("Term", ["Factor"]),
+            ("Term", ["Term_4_L", "Term_4_R"]),
+            ("Term_4_L", ["Term", "MulOp"]),
+            ("Term_4_R", ["Factor"]),
+            ("Factor", ["Primary"]),
+            ("Factor", ["Factor_2_L", "Factor_2_R"]),
+            ("Factor_2_L", ["Factor", "T_^"]),
+            ("Factor_2_R", ["Primary"]),
+            ("Primary", ["T_number"]),
+            ("T_number", ["number"]),
+            ("Primary", ["T_variable"]),
+            ("T_variable", ["variable"]),
+            ("Primary", ["Primary_3_L", "Primary_3_R"]),
+            ("Primary_3_L", ["T_(", "Expr"]),
+            ("Primary_3_R", ["T_)"]),
+            ("AddOp", ["T_+"]),
+            ("T_+", ["+"]),
+            ("AddOp", ["T_-"]),
+            ("T_-", ["-"]),
+            ("MulOp", ["T_*"]),
+            ("T_*", ["*"]),
+            ("MulOp", ["T_/"]),
+            ("T_/", ["/"]),
+            ("T_(", ["("]),
+            ("T_)", [")"]),
+            ("T_^", ["^"])
+          ]
+    ]
