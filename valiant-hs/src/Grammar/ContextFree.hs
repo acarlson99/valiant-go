@@ -4,6 +4,7 @@ module Grammar.ContextFree where
 
 import Control.Monad
 import Data.Bifunctor qualified
+import Data.List (intercalate)
 import Data.Map qualified as Map
 import Data.Set qualified as S
 
@@ -89,10 +90,11 @@ splitProductionBalanced (lhs, rhs)
       let -- splitPos = length rhs `div` 2
           splitPos = length rhs - closestSquareSmallerThan (length rhs)
           (firstHalf, secondHalf) = splitAt splitPos rhs
-          leftNonTerm = lhs ++ "_L"
-          rightNonTerm = lhs ++ "_R"
-          newProductions = splitProductionBalanced (leftNonTerm, firstHalf) ++ splitProductionBalanced (rightNonTerm, secondHalf)
-       in (lhs, [leftNonTerm, rightNonTerm]) : newProductions
+          leftNonTerm = intercalate "_" firstHalf
+          rightNonTerm = intercalate "_" secondHalf
+       in case secondHalf of
+            [x] -> (lhs, [leftNonTerm, x]) : splitProductionBalanced (leftNonTerm, firstHalf)
+            _ -> (lhs, [leftNonTerm, rightNonTerm]) : splitProductionBalanced (leftNonTerm, firstHalf) ++ splitProductionBalanced (rightNonTerm, secondHalf)
 
 -- 3.
 -- https://en.wikipedia.org/wiki/Chomsky_normal_form#BIN:_Eliminate_right-hand_sides_with_more_than_2_nonterminals
@@ -101,15 +103,10 @@ eliminateMoreThanTwoNonTerminals cfg@(CFG {productions = oldProductions}) =
   let toReplace :: [Production]
       toReplace = filter ((> 2) . length . snd) $ S.toList oldProductions
       pairs :: [(Production, [Production])]
-      pairs = zipWith (\old n -> (,) old $ newRenamedProductions n old) toReplace [1 :: Int ..]
+      pairs = map (\old -> (,) old $ splitProductionBalanced old) toReplace
       updateRule (old, newS) = (flip $ foldr S.insert) newS . S.delete old
       prods = foldr updateRule oldProductions pairs
    in cfg {productions = prods}
-  where
-    renameFirstRule :: Symbol -> [Production] -> [Production]
-    renameFirstRule _ [] = []
-    renameFirstRule name (x : xs) = Data.Bifunctor.first (const name) x : xs
-    newRenamedProductions n (x, xs) = renameFirstRule x $ splitProductionBalanced (x ++ "_" ++ show n, xs)
 
 -- set of all nonTerminals that contain a rule that could be empty
 findNullableNonTerminals :: CFG -> S.Set Symbol
@@ -198,6 +195,22 @@ findUnitProductions prods =
     prods
   where
     nonTerminals = S.map fst prods
+
+toChomskyReducedForm =
+  eliminateUnitRules
+    . removeEpsilonRules
+    . eliminateMoreThanTwoNonTerminals
+    . eliminateRulesWithNonsolitaryTerminals
+    . eliminateStartSymbol
+
+-- TODO: add `chomskyReducedForm` to check if grammar is correct
+isChomskyReducedForm cfg@(CFG x xs) =
+  let ss = S.toList xs
+      fn ps = case snd ps of
+        [sym] -> sym `elem` terminals cfg
+        [a, b] -> all (`elem` nonTerminals cfg) [a, b]
+        _ -> False
+   in all fn ss
 
 -- Sample main function to test transformations
 main :: IO ()
