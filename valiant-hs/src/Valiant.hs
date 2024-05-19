@@ -68,6 +68,7 @@ symToTree (Nonterminal x' xs) =
 symToTree (Terminal x) = T.Node (Right x) T.Empty T.Empty
 
 -- Parse a list of `tokens` using `productionRules` into parse trees
+-- TODO: sequence Maybe [T.Tree a] -> Maybe T.Tree [a]
 valiantParse :: (nt ~ String, t ~ String) => ProductionRules nt t -> [String] -> Maybe [T.Tree (Either nt t)]
 valiantParse productionRules tokens =
   let strToTerminalSym = RingParse . S.fromList . catMaybes . (<$> productionRules) . flip unaryApp . Terminal
