@@ -12,7 +12,6 @@ type Symbol = String
 
 type Production = (Symbol, [Symbol])
 
--- TODO: rewrite structure to only contain startSymbol and productions
 data CFG = CFG
   { startSymbol :: Symbol,
     productions :: S.Set Production
@@ -75,7 +74,7 @@ splitProduction (lhs, rhs) =
           newProductions :: [(Symbol, Symbol)]
           newProductions = zip newNonTerms (tail rhs)
           newProductions' :: [Production]
-          newProductions' = zipWith (curry (\((lhs, rhs), s) -> (lhs, [rhs, s]))) newProductions (map fst $ tail newProductions)
+          newProductions' = zipWith (\(lhs, rhs) s -> (lhs, [rhs, s])) newProductions (map fst $ tail newProductions)
           finalProduction = (last newNonTerms, [last (init rhs), last rhs])
        in (lhs, [head rhs, head newNonTerms]) : newProductions' ++ [finalProduction]
 
@@ -206,70 +205,10 @@ toChomskyReducedForm =
 
 -- TODO: add `chomskyReducedForm` to check if grammar is correct
 isChomskyReducedForm :: CFG -> Bool
-isChomskyReducedForm cfg@(CFG x xs) = all (isReduced cfg) $ S.toList xs
+isChomskyReducedForm cfg@(CFG x xs) = all (isRuleChomskyReducedForm cfg) $ S.toList xs
 
-isReduced :: CFG -> Production -> Bool
-isReduced cfg ps = case snd ps of
+isRuleChomskyReducedForm :: CFG -> Production -> Bool
+isRuleChomskyReducedForm cfg ps = case snd ps of
   [sym] -> sym `elem` terminals cfg
   [a, b] -> all (`elem` nonTerminals cfg) [a, b]
   _ -> False
-
--- Sample main function to test transformations
-main :: IO ()
-main = do
-  -- Sample grammar
-  let grammar =
-        CFG
-          { startSymbol = "S",
-            productions =
-              S.fromList
-                [ ("S", ["A", "b", "B"]),
-                  ("S", ["C"]),
-                  ("B", ["A", "A"]),
-                  ("B", ["A", "C"]),
-                  ("C", ["b"]),
-                  ("C", ["c"]),
-                  ("A", ["a"]),
-                  ("A", [])
-                ]
-          }
-
-  putStrLn "Original Grammar:"
-  print grammar
-
-  let transformations =
-        [ ("eliminateStartSymbol", eliminateStartSymbol),
-          ("eliminateRulesWithNonsolitaryTerminals", eliminateRulesWithNonsolitaryTerminals),
-          ("eliminateMoreThanTwoNonTerminals", eliminateMoreThanTwoNonTerminals),
-          ("removeEpsilonRules", removeEpsilonRules),
-          ("eliminateUnitRules", eliminateUnitRules)
-        ]
-
-  finalGrammar <- foldM (\g (s, f) -> logAndTransform g s f) grammar transformations
-
-  putStrLn "\nFinal Grammar after applying all transformations:"
-  print finalGrammar
-
-logAndTransform :: CFG -> [Char] -> (CFG -> CFG) -> IO CFG
-logAndTransform g s f = do
-  let transformed = f g
-  putStrLn $ "\nGrammar after " ++ s ++ " transformation:"
-  print transformed
-  return transformed
-
-data Tree a = Branch (Tree a) (Tree a) | Leaf a | Empty deriving (Show)
-
--- Function to split a string into a maximally balanced tree
-splitStringToTree :: String -> Tree Char
-splitStringToTree [] = Empty
-splitStringToTree [x] = Leaf x
-splitStringToTree str =
-  let (left, right) = splitAt (length str `div` 2) str
-   in Branch (splitStringToTree left) (splitStringToTree right)
-
--- TODO: make this function to convert a tree into a [Production]
-treeToGrams :: Tree Symbol -> [(Symbol, [Symbol])]
-treeToGrams (Branch (Leaf xa) (Leaf xb)) = [("NAME", [xa, xb])]
-treeToGrams (Branch (Leaf xa) Empty) = [("NAME", [xa])]
-treeToGrams (Branch _ _) = []
-treeToGrams Empty = []
