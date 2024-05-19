@@ -4,6 +4,7 @@ module Grammar.ContextFree where
 
 import Control.Monad
 import Data.Bifunctor qualified
+import Data.Map qualified as Map
 import Data.Set qualified as S
 
 type Symbol = String
@@ -36,6 +37,7 @@ addProduction cfg prod = cfg {productions = prod `S.insert` productions cfg}
 removeProduction :: CFG -> Production -> CFG
 removeProduction cfg prod = cfg {productions = prod `S.delete` productions cfg}
 
+-- 1.
 -- https://en.wikipedia.org/wiki/Chomsky_normal_form#START:_Eliminate_the_start_symbol_from_right-hand_sides
 eliminateStartSymbol :: CFG -> CFG
 eliminateStartSymbol cfg@(CFG oldStart oldProductions) =
@@ -46,6 +48,21 @@ eliminateStartSymbol cfg@(CFG oldStart oldProductions) =
   where
     newStart = "S0" -- TODO: generalize
     newProductions = (newStart, [oldStart]) `S.insert` oldProductions
+
+-- 2.
+-- https://en.wikipedia.org/wiki/Chomsky_normal_form#TERM:_Eliminate_rules_with_nonsolitary_terminals
+eliminateRulesWithNonsolitaryTerminals :: CFG -> CFG
+eliminateRulesWithNonsolitaryTerminals cfg@(CFG start oldProductions) =
+  let termMap = Map.fromList [(t, "T_" ++ t) | t <- S.toList $ terminals cfg]
+      replaceTerminals :: Map.Map Symbol Symbol -> Production -> [Production]
+      replaceTerminals termMap (lhs, rhs) =
+        let newRHS = map (\s -> Map.findWithDefault s s termMap) rhs
+         in if any (`Map.member` termMap) rhs
+              then (lhs, newRHS) : [(termMap Map.! t, [t]) | t <- rhs, t `Map.member` termMap]
+              else [(lhs, rhs)]
+      newNonTerminals = S.union (nonTerminals cfg) (S.fromList $ Map.elems termMap)
+      newProductions = S.fromList $ concatMap (replaceTerminals termMap) (S.toList oldProductions)
+   in CFG start newProductions
 
 -- [("S", ["A", "B", "C", "D"])] -> [("S", ["A", "S_1"]), ("S_1", ["B", "S_2"]), ("S_2", ["C", "D"])]
 splitProduction :: Production -> [Production]
@@ -77,6 +94,7 @@ splitProductionBalanced (lhs, rhs)
           newProductions = splitProductionBalanced (leftNonTerm, firstHalf) ++ splitProductionBalanced (rightNonTerm, secondHalf)
        in (lhs, [leftNonTerm, rightNonTerm]) : newProductions
 
+-- 3.
 -- https://en.wikipedia.org/wiki/Chomsky_normal_form#BIN:_Eliminate_right-hand_sides_with_more_than_2_nonterminals
 eliminateMoreThanTwoNonTerminals :: CFG -> CFG
 eliminateMoreThanTwoNonTerminals cfg@(CFG {productions = oldProductions}) =
@@ -118,9 +136,10 @@ inlineNullableProduction nullable (lhs, rhs) =
        in map (lhs,) versions
     else [(lhs, rhs)]
 
+-- 4.
 -- https://en.wikipedia.org/wiki/Chomsky_normal_form#DEL:_Eliminate_%CE%B5-rules
-removeEpsilonProductions :: CFG -> CFG
-removeEpsilonProductions cfg@(CFG {productions = oldProductions}) =
+removeEpsilonRules :: CFG -> CFG
+removeEpsilonRules cfg@(CFG {productions = oldProductions}) =
   let nullableNonTerminals = findNullableNonTerminals cfg
       inlinedProductions :: S.Set Production
       inlinedProductions = S.fromList . concatMap (inlineNullableProduction nullableNonTerminals) $ S.toList oldProductions
@@ -140,30 +159,33 @@ removeEpsilonProductions cfg@(CFG {productions = oldProductions}) =
               then addProduction cfg (startSymbol cfg, [])
               else cfg
           )
-        else removeEpsilonProductions newCFG
+        else removeEpsilonRules newCFG
 
-rulesThatUseSym :: S.Set Production -> Symbol -> S.Set Production
-rulesThatUseSym oldProductions r = S.filter ((== r) . fst) oldProductions
-
-renameRules :: Symbol -> S.Set Production -> S.Set Production
-renameRules name = S.map (Data.Bifunctor.first $ const name)
-
+-- 5.
 -- https://en.wikipedia.org/wiki/Chomsky_normal_form#UNIT:_Eliminate_unit_rules
-inlineUnitRules :: CFG -> CFG
-inlineUnitRules cfg@(CFG {productions = oldProductions}) =
-  let inlineChildren :: S.Set Production -> Production -> S.Set Production
-      inlineChildren prods target =
-        let replacementPairs (lhs, rhs) = S.fromList $ concatMap (S.toList . rulesThatUseSym prods) rhs
-            replaceIf :: [a] -> (a -> Bool) -> [a] -> [a]
-            replaceIf (x : xs) match inthere = let rest = replaceIf xs match inthere in if match x then inthere ++ rest else rest
-            replaceIf [] match inthere = []
-            performInline :: Production -> Production -> Production
-            performInline parent@(pn, px) child@(cn, cx) = (,) pn $ replaceIf px (== cn) cx
-         in renameRules (fst target) $ replacementPairs target
-      unitRules = findUnitProductions oldProductions
+eliminateUnitRules :: CFG -> CFG
+eliminateUnitRules cfg@(CFG {productions = oldProductions}) =
+  let unitRules = findUnitProductions oldProductions
       newRules = S.map (inlineChildren oldProductions) unitRules
       ps = S.union (S.unions newRules) oldProductions S.\\ unitRules
-   in if null unitRules then cfg else inlineUnitRules cfg {productions = ps}
+   in if null unitRules then cfg else eliminateUnitRules cfg {productions = ps}
+  where
+    inlineChildren :: S.Set Production -> Production -> S.Set Production
+    inlineChildren prods target =
+      let rulesThatUseSym :: S.Set Production -> Symbol -> S.Set Production
+          rulesThatUseSym oldProductions r = S.filter ((== r) . fst) oldProductions
+
+          replacementPairs (lhs, rhs) = S.fromList $ concatMap (S.toList . rulesThatUseSym prods) rhs
+
+          replaceIf :: (a -> Bool) -> [a] -> [a] -> [a]
+          replaceIf cond fill = concatMap (\a -> if cond a then fill else [a])
+
+          performInline :: Production -> Production -> Production
+          performInline parent@(pn, px) child@(cn, cx) = (,) pn $ replaceIf (== cn) cx px
+
+          renameRules :: Symbol -> S.Set Production -> S.Set Production
+          renameRules name = S.map (Data.Bifunctor.first $ const name)
+       in renameRules (fst target) $ replacementPairs target
 
 -- Function to find all unit-productions in the grammar
 findUnitProductions :: S.Set Production -> S.Set Production
@@ -202,9 +224,10 @@ main = do
 
   let transformations =
         [ ("eliminateStartSymbol", eliminateStartSymbol),
+          ("eliminateRulesWithNonsolitaryTerminals", eliminateRulesWithNonsolitaryTerminals),
           ("eliminateMoreThanTwoNonTerminals", eliminateMoreThanTwoNonTerminals),
-          ("removeEpsilonProductions", removeEpsilonProductions),
-          ("inlineUnitRules", inlineUnitRules)
+          ("removeEpsilonRules", removeEpsilonRules),
+          ("eliminateUnitRules", eliminateUnitRules)
         ]
 
   finalGrammar <- foldM (\g (s, f) -> logAndTransform g s f) grammar transformations
