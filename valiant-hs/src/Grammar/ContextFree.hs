@@ -195,6 +195,18 @@ findUnitProductions prods =
   where
     nonTerminals = S.map fst prods
 
+removeUnusedRules :: CFG -> CFG
+removeUnusedRules (CFG x xs) =
+  let usedSyms = fn $ S.fromList [x]
+   in CFG x $ rulesUsingSyms usedSyms xs
+  where
+    rulesUsingSyms :: S.Set Symbol -> S.Set Production -> S.Set Production
+    rulesUsingSyms syms = S.filter ((`elem` syms) . fst)
+    fn :: S.Set Symbol -> S.Set Symbol
+    fn syms =
+      let newSyms = S.fromList . concatMap snd . S.toList $ rulesUsingSyms syms xs
+       in S.fold S.insert syms newSyms
+
 toChomskyReducedForm :: CFG -> CFG
 toChomskyReducedForm =
   eliminateUnitRules
