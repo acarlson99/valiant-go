@@ -88,7 +88,7 @@ data SNat :: Nat -> Type where
 instance Show (SNat n) where
   show nat = show $ f nat
     where
-      f :: forall n. SNat n -> Int
+      f :: forall n2. SNat n2 -> Int
       f (SSucc n) = 1 + f n
       f SZero = 0
 

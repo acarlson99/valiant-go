@@ -15,3 +15,4 @@ convertRule :: CF.Production -> Chomp.ProductionRule String String
 convertRule (x, xs) = case xs of
   [a] -> Chomp.Unary x (Chomp.Terminal a)
   [a, b] -> Chomp.Binary x (Chomp.Nonterminal a []) (Chomp.Nonterminal b [])
+  _ -> error "invalid rule in convertRule-- rules should either have 1 or 2 terms"

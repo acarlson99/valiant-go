@@ -70,9 +70,8 @@ mulSM (SquareMatrix a11 a12
       SquareMatrix c11 c12
                     c21 c22
   where
-    (+) = add; (*) = mul
-    c11 = (a11*b11) + (a12*b21);   c12 = (a11*b12) + (a12*b22)
-    c21 = (a21*b11) + (a22*b21);   c22 = (a21*b12) + (a22*b22)
+    c11 = (a11 `mul` b11) `add` (a12 `mul` b21);   c12 = (a11 `mul` b12) `add` (a12 `mul` b22)
+    c21 = (a21 `mul` b11) `add` (a22 `mul` b21);   c22 = (a21 `mul` b12) `add` (a22 `mul` b22)
 mulSM _ _ = error "Illegal type combination for mulSM"
 {- ORMOLU_ENABLE -}
 

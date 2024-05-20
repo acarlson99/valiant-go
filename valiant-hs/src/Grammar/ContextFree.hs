@@ -2,7 +2,6 @@ module Grammar.ContextFree where
 
 -- This module is for converting a ContextFree grammar to Chomsky Normal Form
 
-import Control.Monad
 import Data.Bifunctor qualified
 import Data.List (intercalate)
 import Data.Map qualified as Map
@@ -19,7 +18,7 @@ data CFG = CFG
   deriving (Show, Eq)
 
 nonTerminals :: CFG -> S.Set Symbol
-nonTerminals (CFG s ps) = S.map fst ps
+nonTerminals (CFG _ ps) = S.map fst ps
 
 terminals :: CFG -> S.Set Symbol
 terminals cfg = symbols cfg S.\\ nonTerminals cfg
@@ -40,7 +39,7 @@ removeProduction cfg prod = cfg {productions = prod `S.delete` productions cfg}
 -- 1.
 -- https://en.wikipedia.org/wiki/Chomsky_normal_form#START:_Eliminate_the_start_symbol_from_right-hand_sides
 eliminateStartSymbol :: CFG -> CFG
-eliminateStartSymbol cfg@(CFG oldStart oldProductions) =
+eliminateStartSymbol (CFG oldStart oldProductions) =
   CFG
     { startSymbol = newStart,
       productions = newProductions
@@ -55,31 +54,30 @@ eliminateRulesWithNonsolitaryTerminals :: CFG -> CFG
 eliminateRulesWithNonsolitaryTerminals cfg@(CFG start oldProductions) =
   let termMap = Map.fromList [(t, "T_" ++ t) | t <- S.toList $ terminals cfg]
       replaceTerminals :: Map.Map Symbol Symbol -> Production -> [Production]
-      replaceTerminals termMap (lhs, rhs) =
-        let newRHS = map (\s -> Map.findWithDefault s s termMap) rhs
-         in if any (`Map.member` termMap) rhs
-              then (lhs, newRHS) : [(termMap Map.! t, [t]) | t <- rhs, t `Map.member` termMap]
+      replaceTerminals m (lhs, rhs) =
+        let newRHS = map (\s -> Map.findWithDefault s s m) rhs
+         in if any (`Map.member` m) rhs
+              then (lhs, newRHS) : [(m Map.! t, [t]) | t <- rhs, t `Map.member` m]
               else [(lhs, rhs)]
-      newNonTerminals = S.union (nonTerminals cfg) (S.fromList $ Map.elems termMap)
       newProductions = S.fromList $ concatMap (replaceTerminals termMap) (S.toList oldProductions)
    in CFG start newProductions
 
 -- [("S", ["A", "B", "C", "D"])] -> [("S", ["A", "S_1"]), ("S_1", ["B", "S_2"]), ("S_2", ["C", "D"])]
 splitProduction :: Production -> [Production]
-splitProduction (lhs, rhs) =
-  if length rhs <= 2
-    then [(lhs, rhs)]
+splitProduction (name, rules) =
+  if length rules <= 2
+    then [(name, rules)]
     else
-      let newNonTerms = map (\i -> lhs ++ "_" ++ show i) [1 .. length rhs - 2] -- TODO: this line will cause naming conflicts
+      let newNonTerms = map (\i -> name ++ "_" ++ show i) [1 .. length rules - 2] -- TODO: this line will cause naming conflicts
           newProductions :: [(Symbol, Symbol)]
-          newProductions = zip newNonTerms (tail rhs)
+          newProductions = zip newNonTerms (tail rules)
           newProductions' :: [Production]
           newProductions' = zipWith (\(lhs, rhs) s -> (lhs, [rhs, s])) newProductions (map fst $ tail newProductions)
-          finalProduction = (last newNonTerms, [last (init rhs), last rhs])
-       in (lhs, [head rhs, head newNonTerms]) : newProductions' ++ [finalProduction]
+          finalProduction = (last newNonTerms, [last (init rules), last rules])
+       in (name, [head rules, head newNonTerms]) : newProductions' ++ [finalProduction]
 
 closestSquareSmallerThan :: Int -> Int
-closestSquareSmallerThan = (2 ^) . floor . subtract 1 . logBase 2 . fromIntegral
+closestSquareSmallerThan = ((2 ^) :: Int -> Int) . (floor :: Double -> Int) . subtract 1 . logBase 2 . fromIntegral
 
 -- [("S", ["A", "B", "C", "D"])] -> [("S", ["S_1_L", "S_1_R"]), ("S_1_L", ["A", "B"]), ("S_1_R", ["C", "D"])]
 splitProductionBalanced :: Production -> [Production]
@@ -169,15 +167,9 @@ eliminateUnitRules cfg@(CFG {productions = oldProductions}) =
     inlineChildren :: S.Set Production -> Production -> S.Set Production
     inlineChildren prods target =
       let rulesThatUseSym :: S.Set Production -> Symbol -> S.Set Production
-          rulesThatUseSym oldProductions r = S.filter ((== r) . fst) oldProductions
+          rulesThatUseSym oldPs r = S.filter ((== r) . fst) oldPs
 
-          replacementPairs (lhs, rhs) = S.fromList $ concatMap (S.toList . rulesThatUseSym prods) rhs
-
-          replaceIf :: (a -> Bool) -> [a] -> [a] -> [a]
-          replaceIf cond fill = concatMap (\a -> if cond a then fill else [a])
-
-          performInline :: Production -> Production -> Production
-          performInline parent@(pn, px) child@(cn, cx) = (,) pn $ replaceIf (== cn) cx px
+          replacementPairs (_, rhs) = S.fromList $ concatMap (S.toList . rulesThatUseSym prods) rhs
 
           renameRules :: Symbol -> S.Set Production -> S.Set Production
           renameRules name = S.map (Data.Bifunctor.first $ const name)
@@ -188,12 +180,12 @@ findUnitProductions :: S.Set Production -> S.Set Production
 findUnitProductions prods =
   S.filter
     ( \x -> case x of
-        (_, [s]) -> s `S.member` nonTerminals
+        (_, [s]) -> s `S.member` nonTerms
         _ -> False
     )
     prods
   where
-    nonTerminals = S.map fst prods
+    nonTerms = S.map fst prods
 
 removeUnusedRules :: CFG -> CFG
 removeUnusedRules (CFG x xs) =
@@ -215,9 +207,8 @@ toChomskyReducedForm =
     . eliminateRulesWithNonsolitaryTerminals
     . eliminateStartSymbol
 
--- TODO: add `chomskyReducedForm` to check if grammar is correct
 isChomskyReducedForm :: CFG -> Bool
-isChomskyReducedForm cfg@(CFG x xs) = all (isRuleChomskyReducedForm cfg) $ S.toList xs
+isChomskyReducedForm cfg@(CFG _ xs) = all (isRuleChomskyReducedForm cfg) $ S.toList xs
 
 isRuleChomskyReducedForm :: CFG -> Production -> Bool
 isRuleChomskyReducedForm cfg ps = case snd ps of
