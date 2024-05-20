@@ -110,11 +110,11 @@ res = valiantParse _productionRules toks
 --   mul (RingParse x) (RingParse y) = RingParse $ foldr S.insert S.empty s
 --     where
 --       toL = foldr (:) []
---       s = catMaybes [binApp a a_0 a_1 | a_0 <- toL x, a_1 <- toL y, a <- productionRules]
+--       s = catMaybes [binApp a a_0 a_1 | a_0 <- toL x, a_1 <- toL y, a <- _productionRules]
 
 -- syms = map Terminal toks
 
--- applyUnaryOp = catMaybes . (<$> productionRules) . flip unaryApp
+-- applyUnaryOp = catMaybes . (<$> _productionRules) . flip unaryApp
 
 -- unaryOps = applyUnaryOp <$> syms
 

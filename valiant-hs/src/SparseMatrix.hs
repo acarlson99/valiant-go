@@ -139,13 +139,13 @@ instance
   BirdWalk (Matrix ('Succ n) m) m
   where
   walk topMax mat zv = case mat of
-    (SquareMatrix a b c d) -> (foldr max 0 ns, concatQuads sa sb sc sd)
-      where
-        (ns, [sa, sb, sc, sd]) = unzip $ map (\m -> walk topMax m zv) [a, b, c, d]
-    (UpperRightTriangularMatrix a b d) -> (foldr max 0 ns, concatQuads sa sb sc sd)
-      where
-        (ns, [sa, sb, sc, sd]) = unzip $ map (\m -> walk topMax m zv) [a, b, Empty, d]
     Empty -> walk topMax (SquareMatrix Empty Empty Empty Empty :: Matrix ('Succ n) m) zv
+    (SquareMatrix a b c d) -> expandChildren a b c d
+    (UpperRightTriangularMatrix a b d) -> expandChildren a b Empty d
+    where
+      expandChildren a b c d = case unzip $ map (\m -> walk topMax m zv) [a, b, c, d] of
+        (ns, [sa, sb, sc, sd]) -> (foldr max 0 ns, concatQuads sa sb sc sd)
+        _ -> error "This should not happen"
 
 concatQuads :: String -> String -> String -> String -> String
 concatQuads a b c d = dropLast $ concatMap pairConcat [(a, b), (c, d)]

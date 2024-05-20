@@ -62,19 +62,19 @@ eliminateRulesWithNonsolitaryTerminals cfg@(CFG start oldProductions) =
       newProductions = S.fromList $ concatMap (replaceTerminals termMap) (S.toList oldProductions)
    in CFG start newProductions
 
--- [("S", ["A", "B", "C", "D"])] -> [("S", ["A", "S_1"]), ("S_1", ["B", "S_2"]), ("S_2", ["C", "D"])]
-splitProduction :: Production -> [Production]
-splitProduction (name, rules) =
-  if length rules <= 2
-    then [(name, rules)]
-    else
-      let newNonTerms = map (\i -> name ++ "_" ++ show i) [1 .. length rules - 2] -- TODO: this line will cause naming conflicts
-          newProductions :: [(Symbol, Symbol)]
-          newProductions = zip newNonTerms (tail rules)
-          newProductions' :: [Production]
-          newProductions' = zipWith (\(lhs, rhs) s -> (lhs, [rhs, s])) newProductions (map fst $ tail newProductions)
-          finalProduction = (last newNonTerms, [last (init rules), last rules])
-       in (name, [head rules, head newNonTerms]) : newProductions' ++ [finalProduction]
+-- -- [("S", ["A", "B", "C", "D"])] -> [("S", ["A", "S_1"]), ("S_1", ["B", "S_2"]), ("S_2", ["C", "D"])]
+-- splitProduction :: Production -> [Production]
+-- splitProduction (name, rules) =
+--   if length rules <= 2
+--     then [(name, rules)]
+--     else
+--       let newNonTerms = map (\i -> name ++ "_" ++ show i) [1 .. length rules - 2] -- TODO: this line will cause naming conflicts
+--           newProductions :: [(Symbol, Symbol)]
+--           newProductions = zip newNonTerms (tail rules)
+--           newProductions' :: [Production]
+--           newProductions' = zipWith (\(lhs, rhs) s -> (lhs, [rhs, s])) newProductions (map fst $ tail newProductions)
+--           finalProduction = (last newNonTerms, [last (init rules), last rules])
+--        in (name, [head rules, head newNonTerms]) : newProductions' ++ [finalProduction]
 
 closestSquareSmallerThan :: Int -> Int
 closestSquareSmallerThan = ((2 ^) :: Int -> Int) . (floor :: Double -> Int) . subtract 1 . logBase 2 . fromIntegral

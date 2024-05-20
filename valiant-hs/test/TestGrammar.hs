@@ -2,12 +2,11 @@ module TestGrammar where
 
 import Data.Set qualified as S
 import Grammar.ContextFree
-import Grammar.ContextFree (isChomskyReducedForm)
 import Test.HUnit
 
+tests :: [Test]
 tests =
   [ testEliminateRulesWithNonsolitaryTerminals,
-    testSplitProduction,
     testEliminateMoreThanTwoNonTerminals,
     testRemoveEpsilonRules,
     testEliminateUnitRules,
@@ -36,51 +35,6 @@ testEliminateRulesWithNonsolitaryTerminals =
               ]
         ]
 
-testSplitProduction :: Test
-testSplitProduction =
-  test
-    [ "Split production"
-        ~: splitProduction
-          ("S", ["A", "b", "B"])
-        ~?= [ ("S", ["A", "S_1"]),
-              ("S_1", ["b", "B"])
-            ],
-      "Production with 0 non-terminals"
-        ~: splitProduction
-          ("S", [])
-        ~?= [("S", [])],
-      "Production with 1 non-terminal"
-        ~: splitProduction
-          ("S", ["A"])
-        ~?= [("S", ["A"])],
-      "Production with 2 non-terminals"
-        ~: splitProduction
-          ("S", ["A", "B"])
-        ~?= [("S", ["A", "B"])],
-      "Production with 3 non-terminals"
-        ~: splitProduction
-          ("S", ["A", "B", "C"])
-        ~?= [ ("S", ["A", "S_1"]),
-              ("S_1", ["B", "C"])
-            ],
-      "Production with 4 non-terminals"
-        ~: splitProduction
-          ("S", ["A", "B", "C", "D"])
-        ~?= [ ("S", ["A", "S_1"]),
-              ("S_1", ["B", "S_2"]),
-              ("S_2", ["C", "D"])
-            ],
-      "Production with 5 non-terminals"
-        ~: splitProduction
-          ("S", ["A", "B", "C", "D", "E"])
-        ~?= [ ("S", ["A", "S_1"]),
-              ("S_1", ["B", "S_2"]),
-              ("S_2", ["C", "S_3"]),
-              ("S_3", ["D", "E"])
-            ]
-    ]
-
--- Test cases for eliminateMoreThanTwoNonTerminals function
 testEliminateMoreThanTwoNonTerminals :: Test
 testEliminateMoreThanTwoNonTerminals =
   let go = eliminateMoreThanTwoNonTerminals . gramFromProds
@@ -233,6 +187,7 @@ testRemoveEpsilonRules =
               ]
         ]
 
+testEliminateUnitRules :: Test
 testEliminateUnitRules =
   let go = eliminateUnitRules . gramFromProds
    in test
@@ -479,6 +434,7 @@ testWikiExample =
           ]
     ]
 
+testIsChomskyReduced :: Test
 testIsChomskyReduced =
   let goGram = isChomskyReducedForm . gramFromProds
    in test
