@@ -56,10 +56,13 @@ instance Ring Integer where
   add = (+)
   mul = (*)
 
-instance Semigroup Integer where
+newtype RingInteger = RingInteger Integer
+  deriving (Num)
+
+instance Semigroup RingInteger where
   (<>) = (+)
 
-instance Monoid Integer where
+instance Monoid RingInteger where
   mempty = 0
 
 instance (Ring a, Ord a) => Ring (Set a) where

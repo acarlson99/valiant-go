@@ -15,11 +15,13 @@ tests =
   ]
 
 gramFromProds :: [Production] -> CFG
-gramFromProds prods =
-  CFG
-    { startSymbol = fst $ head prods,
-      productions = S.fromList prods
-    }
+gramFromProds prods = case prods of
+  ((x, _) : _) ->
+    CFG
+      { startSymbol = x,
+        productions = S.fromList prods
+      }
+  [] -> error "Invalid grammar"
 
 testEliminateRulesWithNonsolitaryTerminals :: Test
 testEliminateRulesWithNonsolitaryTerminals =
