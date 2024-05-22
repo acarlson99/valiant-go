@@ -1,8 +1,16 @@
 module Grammar.Chomsky where
 
---                             A -> BC          | "fish"
+-- Symbol is either a terminal or a nonterminal
+-- Nonterminals contain children which should be empty before parsing begins
+-- Nonterminal children are filled in during parsing
 data Symbol nt t = Nonterminal nt [Symbol nt t] | Terminal t
   deriving (Eq, Ord)
+
+newTerm :: t -> Symbol nt t
+newTerm = Terminal
+
+newNonTerm :: nt -> Symbol nt t
+newNonTerm = flip Nonterminal []
 
 symNameEq :: (Eq nt, Eq t) => Symbol nt t -> Symbol nt t -> Bool
 symNameEq (Nonterminal a _) (Nonterminal b _) = a == b

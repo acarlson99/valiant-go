@@ -84,18 +84,18 @@ valiantParse productionRules tokens =
 
 _productionRules :: ProductionRules String String
 _productionRules =
-  [ Binary "S" (Nonterminal "NP" []) (Nonterminal "VP" []),
-    Binary "VP" (Nonterminal "VP" []) (Nonterminal "PP" []),
-    Binary "VP" (Nonterminal "V" []) (Nonterminal "NP" []),
-    Unary "VP" (Terminal "eats"),
-    Binary "PP" (Nonterminal "P" []) (Nonterminal "NP" []),
-    Binary "NP" (Nonterminal "Det" []) (Nonterminal "N" []),
-    Unary "NP" (Terminal "she"),
-    Unary "V" (Terminal "eats"),
-    Unary "P" (Terminal "with"),
-    Unary "N" (Terminal "fish"),
-    Unary "N" (Terminal "fork"),
-    Unary "Det" (Terminal "a")
+  [ Binary "S" (newNonTerm "NP") (newNonTerm "VP"),
+    Binary "VP" (newNonTerm "VP") (newNonTerm "PP"),
+    Binary "VP" (newNonTerm "V") (newNonTerm "NP"),
+    Unary "VP" (newTerm "eats"),
+    Binary "PP" (newNonTerm "P") (newNonTerm "NP"),
+    Binary "NP" (newNonTerm "Det") (newNonTerm "N"),
+    Unary "NP" (newTerm "she"),
+    Unary "V" (newTerm "eats"),
+    Unary "P" (newTerm "with"),
+    Unary "N" (newTerm "fish"),
+    Unary "N" (newTerm "fork"),
+    Unary "Det" (newTerm "a")
   ]
 
 toks :: [String]
