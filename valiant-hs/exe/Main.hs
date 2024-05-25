@@ -1,7 +1,8 @@
 module Main where
 
-import Grammar.Tokenize (tokenizers)
+import Grammar.Tokenize (getTokenizer)
 import Options.Applicative qualified as Opt
+import System.Exit (die)
 
 data Options = Options
   { gram :: String,
@@ -9,28 +10,6 @@ data Options = Options
     files :: [String]
   }
   deriving (Show)
-
-options :: Opt.Parser Options
-options =
-  Options
-    <$> Opt.strOption
-      ( Opt.long "gram"
-          <> Opt.metavar "GRAM"
-          <> Opt.help "Path to grammar file"
-      )
-    <*> Opt.strOption
-      ( Opt.long "tokenizer"
-          <> Opt.metavar "TOKENIZER"
-          <> Opt.help "Tokenizer type"
-          <> Opt.value "default"
-          <> Opt.showDefault
-      )
-    <*> Opt.many (Opt.argument Opt.str (Opt.metavar "FILES..."))
-
-main :: IO ()
-main = do
-  opts <- Opt.execParser optsParser
-  handleOptions opts
 
 optsParser :: Opt.ParserInfo Options
 optsParser =
@@ -40,26 +19,37 @@ optsParser =
         <> Opt.progDesc "Parse files with specified grammar and tokenizer"
         <> Opt.header "parse - a simple parser utility"
     )
+  where
+    options :: Opt.Parser Options
+    options =
+      Options
+        <$> Opt.strOption
+          ( Opt.long "gram"
+              <> Opt.metavar "GRAM"
+              <> Opt.help "Path to grammar file"
+          )
+        <*> Opt.strOption
+          ( Opt.long "tokenizer"
+              <> Opt.metavar "TOKENIZER"
+              <> Opt.help "Tokenizer type"
+              <> Opt.value "default"
+              <> Opt.showDefault
+          )
+        <*> Opt.many (Opt.argument Opt.str (Opt.metavar "FILES..."))
 
-handleOptions :: Options -> IO ()
-handleOptions (Options gram tokenizer files) = do
+main :: IO ()
+main = do
+  (Options gram tokenizer files) <- Opt.execParser optsParser
   content <-
     if null files
-      then getContents -- Read from stdin if no files are provided
-      else concat <$> mapM readFile files -- Read from provided files
+      then sequence [getContents] -- Read from stdin if no files are provided
+      else mapM readFile files -- Read from provided files
   putStrLn $ "Grammar file: " ++ gram
   gramContent <- readFile gram
   putStrLn gramContent
   putStrLn $ "Tokenizer: " ++ tokenizer
-  case ($ gramContent) <$> matchTokenizer tokenizer of
-    Just xs -> print xs
-    Nothing -> putStrLn $ "Invalid tokenizer: " ++ tokenizer ++ " please select from: " ++ concatMap fst tokenizers
+  tf <- case getTokenizer tokenizer of
+    Left xs -> return xs
+    Right msg -> die msg
   putStrLn "Files content:"
-  putStrLn content
-
-matchTokenizer :: String -> Maybe (String -> [String])
-matchTokenizer s =
-  snd
-    <$> case filter ((== s) . fst) tokenizers of
-      (x : _) -> Just x
-      [] -> Nothing
+  print $ map tf content
