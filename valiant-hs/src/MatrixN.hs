@@ -1,6 +1,7 @@
 {-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE GADTs #-}
 {-# LANGUAGE RankNTypes #-}
+{-# OPTIONS_GHC -Wno-orphans #-}
 
 module MatrixN where
 
@@ -45,3 +46,22 @@ matrixNTopRightMost (MatrixN SZero m) = case m of
 
 liftMatF :: (forall n. Matrix n a -> b) -> MatrixN a -> b
 liftMatF f (MatrixN _ m) = f m
+
+instance (Show a) => Show (MatrixN a) where
+  show (MatrixN n matrix) = "Matrix of size n=" ++ show n ++ "\n" ++ indentOnParens (show matrix)
+    where
+      indentOnParens str = go str 0 ""
+
+      go :: String -> Int -> String -> String
+      go [] _ indented = reverse indented
+      go (x : xs) openCount indented
+        | x == '(' = go xs (openCount + 1) (x : indented)
+        | x == ')' = go xs (max 0 (openCount - 1)) (x : indented)
+        | x == '\n' = go xs openCount (replicate openCount ' ' ++ x : indented)
+        | otherwise = go xs openCount (x : indented)
+
+instance {-# OVERLAPPABLE #-} (Show a) => Show (Matrix n a) where
+  show (SquareMatrix a b c d) = "(SquareMatrix\n" ++ show a ++ "\n" ++ show b ++ "\n" ++ show c ++ "\n" ++ show d ++ ")"
+  show (UpperRightTriangularMatrix a b c) = "(UpperRightTriangularMatrix\n" ++ show a ++ "\n" ++ show b ++ "\n" ++ "(Empty)" ++ show c ++ ")"
+  show (UnitMatrix a) = "(UnitMatrix " ++ show a ++ ")"
+  show Empty = "(Empty)"
