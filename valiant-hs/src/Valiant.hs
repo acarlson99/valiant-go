@@ -7,6 +7,8 @@ module Valiant where
 import Data.Maybe
 import Data.Set qualified as S
 import Grammar.Chomsky
+import Grammar.ContextFree (bnfCFG)
+import Grammar.Convert (bnfGram, convert)
 import MatrixN
 import Nat
 import Ring
@@ -70,15 +72,34 @@ symToTree (Terminal x) = T.Node (Right x) T.Empty T.Empty
 
 -- Parse a list of `tokens` using `productionRules` into parse trees
 -- TODO: sequence Maybe [T.Tree a] -> Maybe T.Tree [a]
-valiantParse :: (nt ~ String, t ~ String) => ProductionRules nt t -> [String] -> Maybe [T.Tree (Either nt t)]
+valiantParse :: (nt ~ String, t ~ String) => ProductionRules nt t -> [String] -> [T.Tree (Either nt t)]
 valiantParse productionRules tokens =
   let strToTerminalSym = RingParse . S.fromList . catMaybes . (<$> productionRules) . flip unaryApp . Terminal
       opRing = map strToTerminalSym tokens
       mat = pure <$> vecNToValiantMatrixN mempty (listToVecN opRing)
-   in map symToTree . S.toList . getSyms
-        <$> liftMatF
-          (matrixTopRightMost . fmap ($ productionRules))
-          (liftV mat)
+   in maybe
+        []
+        (map symToTree . S.toList . getSyms)
+        ( liftMatF
+            (matrixTopRightMost . fmap ($ productionRules))
+            (liftV mat)
+        )
+
+-- test
+
+-- tokens = ["<", "i", "d", "e", "n", "t", ">", ":", ":", "=", " ", "\"", "a", "\""]
+tokens = ["<", "i", "d", "e", "n", "t", ">", ":", ":", "=", " ", "\"", "a", "\""] --
+
+productionRules = bnfGram
+
+strToTerminalSym = RingParse . S.fromList . catMaybes . (<$> productionRules) . flip unaryApp . Terminal
+
+opRing' = map strToTerminalSym tokens
+
+mat :: MatrixN (ProductionRules String String -> RingParse (Grammar.Chomsky.Symbol String String))
+mat = pure <$> vecNToValiantMatrixN mempty (listToVecN opRing')
+
+m mat = fmap ($ productionRules) mat
 
 -- EXAMPLE
 
@@ -101,7 +122,7 @@ _productionRules =
 toks :: [String]
 toks = words "she eats a fish with a fork"
 
-res :: Maybe [T.Tree (Either String String)]
+res :: [T.Tree (Either String String)]
 res = valiantParse _productionRules toks
 
 -- instance (a ~ Symbol String String) => Ring (RingParse a) where
@@ -121,9 +142,9 @@ res = valiantParse _productionRules toks
 -- opRing :: [RingParse (Symbol String String)]
 -- opRing = map (RingParse . S.fromList) unaryOps
 
--- __a :: Matrix ('Succ ('Succ ('Succ 'Zero))) (ProductionRules String String -> RingParse (Symbol String String))
+-- __a :: Matrix ('Succ ('Succ ('Succ 'Zero))) (RingParse (Symbol String String))
 -- __a =
---   pure
+--   ($ _productionRules) . pure
 --     <$> UpperRightTriangularMatrix
 --       ( UpperRightTriangularMatrix
 --           (UpperRightTriangularMatrix Empty (UnitMatrix a) Empty)
@@ -144,5 +165,5 @@ res = valiantParse _productionRules toks
 --   where
 --     [a, b, c, d, e, f, g] = opRing
 
--- -- [a, b, c, d, e, f, g] = [1 .. 7]
--- -- a `mul` ((b `mul` (c `mul` d)) `mul` (e `mul` (f `mul` g)))
+-- [a, b, c, d, e, f, g] = [1 .. 7]
+-- a `mul` ((b `mul` (c `mul` d)) `mul` (e `mul` (f `mul` g)))

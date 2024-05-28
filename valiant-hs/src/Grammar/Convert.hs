@@ -2,6 +2,7 @@ module Grammar.Convert where
 
 import Data.Set qualified as S
 import Grammar.Chomsky qualified as Chomp
+import Grammar.ContextFree (bnfCFG)
 import Grammar.ContextFree qualified as CF
 
 convert :: CF.CFG -> Chomp.ProductionRules String String
@@ -16,3 +17,5 @@ convertRule (x, xs) = case xs of
   [a] -> Chomp.Unary x (Chomp.Terminal a)
   [a, b] -> Chomp.Binary x (Chomp.newNonTerm a) (Chomp.newNonTerm b)
   _ -> error "invalid rule in convertRule-- rules should either have 1 or 2 terms"
+
+bnfGram = convert $ (CF.removeUnusedRules . CF.toChomskyReducedForm) bnfCFG
