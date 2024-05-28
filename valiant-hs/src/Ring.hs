@@ -51,13 +51,13 @@ instance Ring Int where
   add = (+)
   mul = (*)
 
-instance Ring Integer where
+newtype RingInteger = RingInteger Integer
+  deriving (Num, Show)
+
+instance Ring RingInteger where
   zero = 0
   add = (+)
   mul = (*)
-
-newtype RingInteger = RingInteger Integer
-  deriving (Num)
 
 instance Semigroup RingInteger where
   (<>) = (+)
