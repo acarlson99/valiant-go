@@ -28,13 +28,13 @@ data ProductionRule nt t where
 type ProductionRules nt t = [ProductionRule nt t]
 
 instance (Show t, Show nt) => Show (ProductionRule nt t) where
-  show rule = show s ++ " -> " ++ concatMap show ss
+  show rule = s ++ " -> " ++ ss
     where
-      ss :: [Symbol nt t]
-      s :: Symbol nt t
+      -- ss :: [Symbol nt t]
+      -- s :: Symbol nt t
       (s, ss) = case rule of
-        (Unary n a) -> (Nonterminal n [], [a])
-        (Binary n a b) -> (Nonterminal n [], [a, b])
+        (Unary n a) -> (show n, show a)
+        (Binary n a b) -> (show n, show a ++ " " ++ show b)
 
 binApp :: (Eq nt, Eq t) => ProductionRule nt t -> Symbol nt t -> Symbol nt t -> Maybe (Symbol nt t)
 binApp (Binary n a b) x y = if x `symNameEq` a && b `symNameEq` y then return $ Nonterminal n [x, y] else Nothing
