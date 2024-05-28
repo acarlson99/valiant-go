@@ -11,7 +11,8 @@ tests =
     testRemoveEpsilonRules,
     testEliminateUnitRules,
     testWikiExample,
-    testIsChomskyReduced
+    testIsChomskyReduced,
+    testRemoveUnusedRules
   ]
 
 gramFromProds :: [Production] -> CFG
@@ -475,4 +476,22 @@ testIsChomskyReduced =
           "Test isChomskyReduced should fail on non-reduced form"
             ~: isChomskyReducedForm wikiExample
             ~?= False
+        ]
+
+testRemoveUnusedRules :: Test
+testRemoveUnusedRules =
+  let go = removeUnusedRules . gramFromProds
+   in test
+        [ "Test removes unused"
+            ~: go [("S", ["a"]), ("A", ["a"])]
+            ~?= gramFromProds
+              [("S", ["a"])],
+          "Test does not remove used"
+            ~: go [("S", ["A"]), ("A", ["a"])]
+            ~?= gramFromProds
+              [("S", ["A"]), ("A", ["a"])],
+          "Test removes entire unused trees"
+            ~: go [("S", ["A"]), ("A", ["a"]), ("B", ["C"]), ("C", ["D"]), ("D", ["d"])]
+            ~?= gramFromProds
+              [("S", ["A"]), ("A", ["a"])]
         ]
