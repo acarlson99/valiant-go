@@ -1,1 +1,4 @@
-/valiant-hs/newdist/
+/newdist/
+/dist-newstyle/*
+.cabal*
+*.swp
