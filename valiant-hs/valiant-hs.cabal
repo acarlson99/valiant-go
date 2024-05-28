@@ -64,6 +64,7 @@ library
     Grammar.Chomsky
     Grammar.ContextFree
     Grammar.Convert
+    Grammar.Tokenize
     MatrixN
     Nat
     Ring
@@ -106,7 +107,8 @@ executable valiant-hs
 
   -- Other library packages from which modules are imported.
   build-depends:
-    , base        >=4.19.0.0
+    , base                  >=4.19.0.0
+    , optparse-applicative
     , valiant-hs
 
   -- Directories containing source files.
