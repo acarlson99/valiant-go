@@ -192,11 +192,9 @@ removeUnusedRules (CFG x xs) =
   let usedSyms = fn $ S.fromList [x]
    in CFG x $ S.unions $ S.map (\a -> S.filter ((== a) . fst) xs) usedSyms
   where
-    rulesUsingSyms :: S.Set Symbol -> S.Set Production -> S.Set Production
-    rulesUsingSyms syms ps = S.union (S.unions $ S.map (rulesWithName ps) syms) $ S.filter (not . null . (`S.intersection` syms) . S.fromList . snd) $ ps
     fn :: S.Set Symbol -> S.Set Symbol
     fn syms =
-      let newSyms = S.fromList . concatMap (\a -> pure (fst a) <> snd a) . S.toList $ rulesUsingSyms syms xs
+      let newSyms = S.fromList . concatMap (\a -> pure (fst a) <> snd a) . S.toList . S.unions $ S.map (rulesWithName xs) syms
           newSet = S.union syms newSyms
        in if newSet == syms then syms else fn newSet
 
