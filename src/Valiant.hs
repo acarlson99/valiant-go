@@ -166,3 +166,56 @@ res = valiantParse _productionRules toks
 
 -- [a, b, c, d, e, f, g] = [1 .. 7]
 -- a `mul` ((b `mul` (c `mul` d)) `mul` (e `mul` (f `mul` g)))
+__a :: [String] -> Matrix (Succ (Succ (Succ (Succ Zero)))) (ProductionRules String String -> RingParse (Symbol String String))
+__a ts =
+  pure
+    <$> UpperRightTriangularMatrix
+      ( UpperRightTriangularMatrix
+          ( UpperRightTriangularMatrix
+              (UpperRightTriangularMatrix Empty (UnitMatrix a) Empty)
+              (SquareMatrix Empty Empty (UnitMatrix b) Empty)
+              (UpperRightTriangularMatrix Empty (UnitMatrix c) Empty)
+          )
+          ( SquareMatrix
+              Empty
+              Empty
+              (SquareMatrix Empty Empty (UnitMatrix d) Empty)
+              Empty
+          )
+          ( UpperRightTriangularMatrix
+              (UpperRightTriangularMatrix Empty (UnitMatrix e) Empty)
+              (SquareMatrix Empty Empty (UnitMatrix f) Empty)
+              (UpperRightTriangularMatrix Empty (UnitMatrix g) Empty)
+          )
+      )
+      ( SquareMatrix
+          Empty
+          Empty
+          ( SquareMatrix
+              Empty
+              Empty
+              (SquareMatrix Empty Empty (UnitMatrix h) Empty)
+              Empty
+          )
+          Empty
+      )
+      ( UpperRightTriangularMatrix
+          ( UpperRightTriangularMatrix
+              (UpperRightTriangularMatrix Empty (UnitMatrix i) Empty)
+              (SquareMatrix Empty Empty (UnitMatrix j) Empty)
+              (UpperRightTriangularMatrix Empty (UnitMatrix k) Empty)
+          )
+          ( SquareMatrix
+              Empty
+              Empty
+              (SquareMatrix Empty Empty Empty Empty)
+              Empty
+          )
+          ( UpperRightTriangularMatrix
+              (UpperRightTriangularMatrix Empty Empty Empty)
+              (SquareMatrix Empty Empty Empty Empty)
+              (UpperRightTriangularMatrix Empty Empty Empty)
+          )
+      )
+  where
+    (a : b : c : d : e : f : g : h : i : j : k : _) = opRing' ts

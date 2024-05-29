@@ -65,3 +65,18 @@ instance {-# OVERLAPPABLE #-} (Show a) => Show (Matrix n a) where
   show (UpperRightTriangularMatrix a b c) = "(UpperRightTriangularMatrix\n" ++ show a ++ show b ++ "(Empty)\n" ++ (reverse . drop 1 . reverse . show) c ++ ")\n"
   show (UnitMatrix a) = "(UnitMatrix " ++ show a ++ ")\n"
   show Empty = "(Empty)\n"
+
+matI :: Int -> MatrixN a -> Maybe (MatrixN a)
+matI i (MatrixN n m) = case n of
+  SZero -> Nothing
+  SSucc n2 ->
+    Just $
+      MatrixN
+        n2
+        ( ( case m of
+              UpperRightTriangularMatrix a b d -> [a, b, Empty, d]
+              SquareMatrix a b c d -> [a, b, c, d]
+              Empty -> replicate 4 Empty
+          )
+            !! i
+        )
