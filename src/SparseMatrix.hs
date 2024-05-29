@@ -109,20 +109,20 @@ instance (Eq a) => Eq (Matrix n a) where
 class (Show a, Show b) => BirdWalk a b where
   walk :: Int -> a -> b -> (Int, String)
 
-instance (Show m, Ring m, Ring m) => Show (Matrix 'Zero m) where
+instance (Show m, Monoid m) => Show (Matrix 'Zero m) where
   show m = s
     where
-      (topMax, s) = walk topMax m (zero @m)
+      (topMax, s) = walk topMax m (mempty @m)
 
 instance
-  (Show m, BirdWalk (Matrix n m) m, Ring m) =>
+  (Show m, BirdWalk (Matrix n m) m, Monoid m) =>
   Show (Matrix ('Succ n) m)
   where
   show mat = s
     where
-      (topMax, s) = walk topMax mat (zero @m)
+      (topMax, s) = walk topMax mat (mempty @m)
 
-instance (Show m, Ring m) => BirdWalk (Matrix 'Zero m) m where
+instance (Show m, Monoid m) => BirdWalk (Matrix 'Zero m) m where
   walk topMax mat zv = (length s, fixLength topMax s)
     where
       s = show $ case mat of
@@ -135,7 +135,7 @@ instance (Show m, Ring m) => BirdWalk (Matrix 'Zero m) m where
           len = length x
 
 instance
-  (Show m, BirdWalk (Matrix n m) m, Ring m) =>
+  (Show m, BirdWalk (Matrix n m) m, Monoid m) =>
   BirdWalk (Matrix ('Succ n) m) m
   where
   walk topMax mat zv = case mat of
