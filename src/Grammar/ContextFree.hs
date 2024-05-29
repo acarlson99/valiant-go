@@ -196,8 +196,9 @@ removeUnusedRules (CFG x xs) =
     rulesUsingSyms syms ps = S.union (S.unions $ S.map (rulesWithName ps) syms) $ S.filter (not . null . (`S.intersection` syms) . S.fromList . snd) $ ps
     fn :: S.Set Symbol -> S.Set Symbol
     fn syms =
-      let newSyms = S.fromList . concatMap snd . S.toList $ rulesUsingSyms syms xs
-       in S.union syms newSyms
+      let newSyms = S.fromList . concatMap (\a -> pure (fst a) <> snd a) . S.toList $ rulesUsingSyms syms xs
+          newSet = S.union syms newSyms
+       in if newSet == syms then syms else fn newSet
 
 toChomskyReducedForm :: CFG -> CFG
 toChomskyReducedForm =
