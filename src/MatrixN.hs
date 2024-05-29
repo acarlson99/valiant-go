@@ -61,7 +61,7 @@ instance (Show a) => Show (MatrixN a) where
         | otherwise = go xs openCount (x : indented)
 
 instance {-# OVERLAPPABLE #-} (Show a) => Show (Matrix n a) where
-  show (SquareMatrix a b c d) = "(SquareMatrix\n" ++ show a ++ "\n" ++ show b ++ "\n" ++ show c ++ "\n" ++ show d ++ ")"
-  show (UpperRightTriangularMatrix a b c) = "(UpperRightTriangularMatrix\n" ++ show a ++ "\n" ++ show b ++ "\n" ++ "(Empty)" ++ show c ++ ")"
-  show (UnitMatrix a) = "(UnitMatrix " ++ show a ++ ")"
-  show Empty = "(Empty)"
+  show (SquareMatrix a b c d) = "(SquareMatrix\n" ++ show a ++ show b ++ show c ++ (reverse . drop 1 . reverse . show) d ++ ")\n"
+  show (UpperRightTriangularMatrix a b c) = "(UpperRightTriangularMatrix\n" ++ show a ++ show b ++ "(Empty)\n" ++ (reverse . drop 1 . reverse . show) c ++ ")\n"
+  show (UnitMatrix a) = "(UnitMatrix " ++ show a ++ ")\n"
+  show Empty = "(Empty)\n"

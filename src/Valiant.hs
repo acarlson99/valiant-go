@@ -88,18 +88,17 @@ valiantParse productionRules tokens =
 -- test
 
 -- tokens = ["<", "i", "d", "e", "n", "t", ">", ":", ":", "=", " ", "\"", "a", "\""]
-tokens = ["<", "i", "d", "e", "n", "t", ">", ":", ":", "=", " ", "\"", "a", "\""] --
+tokens = ["<", "P", ">", " ", ":", ":", "=", " ", "<", "P", ">"] --
 
 productionRules = bnfGram
 
 strToTerminalSym = RingParse . S.fromList . catMaybes . (<$> productionRules) . flip unaryApp . Terminal
 
-opRing' = map strToTerminalSym tokens
+opRing' ts = map strToTerminalSym ts
 
-mat :: MatrixN (ProductionRules String String -> RingParse (Grammar.Chomsky.Symbol String String))
-mat = pure <$> vecNToValiantMatrixN mempty (listToVecN opRing')
+mat ts = pure <$> vecNToValiantMatrixN mempty (listToVecN $ opRing' ts)
 
-m mat = fmap ($ productionRules) mat
+showM m = fmap ($ productionRules) m
 
 -- EXAMPLE
 

@@ -434,6 +434,47 @@ testWikiExample =
             ("T_-", ["-"]),
             ("T_/", ["/"]),
             ("T_^", ["^"])
+          ],
+      "Test remove unused"
+        ~: ( removeUnusedRules
+               . eliminateUnitRules
+               . removeEpsilonRules
+               . eliminateMoreThanTwoNonTerminals
+               . eliminateRulesWithNonsolitaryTerminals
+               . eliminateStartSymbol
+           )
+          wikiExample
+        ~?= gramFromProds
+          [ ("S0", ["AddOp", "Term"]),
+            ("S0", ["Expr_AddOp", "Term"]),
+            ("S0", ["Factor_T_^", "Primary"]),
+            ("S0", ["T_(_Expr", "T_)"]),
+            ("S0", ["Term_MulOp", "Factor"]),
+            ("S0", ["number"]),
+            ("S0", ["variable"]),
+            ("Expr_AddOp", ["Expr", "AddOp"]),
+            ("Term", ["Factor_T_^", "Primary"]),
+            ("Term", ["T_(_Expr", "T_)"]),
+            ("Term", ["Term_MulOp", "Factor"]),
+            ("Term_MulOp", ["Term", "MulOp"]),
+            ("Term", ["number"]),
+            ("Term", ["variable"]),
+            ("Factor", ["Factor_T_^", "Primary"]),
+            ("Factor", ["T_(_Expr", "T_)"]),
+            ("Factor", ["number"]),
+            ("Factor", ["variable"]),
+            ("Factor_T_^", ["Factor", "T_^"]),
+            ("Primary", ["number"]),
+            ("Primary", ["variable"]),
+            ("Primary", ["T_(_Expr", "T_)"]),
+            ("T_(_Expr", ["T_(", "Expr"]),
+            ("AddOp", ["+"]),
+            ("AddOp", ["-"]),
+            ("MulOp", ["*"]),
+            ("MulOp", ["/"]),
+            ("T_(", ["("]),
+            ("T_)", [")"]),
+            ("T_^", ["^"])
           ]
     ]
 

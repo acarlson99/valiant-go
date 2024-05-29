@@ -166,14 +166,14 @@ eliminateUnitRules cfg@(CFG {productions = oldProductions}) =
   where
     inlineChildren :: S.Set Production -> Production -> S.Set Production
     inlineChildren prods target =
-      let rulesThatUseSym :: S.Set Production -> Symbol -> S.Set Production
-          rulesThatUseSym oldPs r = S.filter ((== r) . fst) oldPs
-
-          replacementPairs (_, rhs) = S.fromList $ concatMap (S.toList . rulesThatUseSym prods) rhs
+      let replacementPairs (_, rhs) = S.fromList $ concatMap (S.toList . rulesWithName prods) rhs
 
           renameRules :: Symbol -> S.Set Production -> S.Set Production
           renameRules name = S.map (Data.Bifunctor.first $ const name)
        in renameRules (fst target) $ replacementPairs target
+
+rulesWithName :: S.Set Production -> Symbol -> S.Set Production
+rulesWithName oldPs r = S.filter ((== r) . fst) oldPs
 
 -- Function to find all unit-productions in the grammar
 findUnitProductions :: S.Set Production -> S.Set Production
@@ -190,14 +190,14 @@ findUnitProductions prods =
 removeUnusedRules :: CFG -> CFG
 removeUnusedRules (CFG x xs) =
   let usedSyms = fn $ S.fromList [x]
-   in CFG x $ rulesUsingSyms usedSyms xs
+   in CFG x $ S.unions $ S.map (\a -> S.filter ((== a) . fst) xs) usedSyms
   where
     rulesUsingSyms :: S.Set Symbol -> S.Set Production -> S.Set Production
-    rulesUsingSyms syms = S.filter ((`elem` syms) . fst)
+    rulesUsingSyms syms ps = S.union (S.unions $ S.map (rulesWithName ps) syms) $ S.filter (not . null . (`S.intersection` syms) . S.fromList . snd) $ ps
     fn :: S.Set Symbol -> S.Set Symbol
     fn syms =
       let newSyms = S.fromList . concatMap snd . S.toList $ rulesUsingSyms syms xs
-       in S.fold S.insert syms newSyms
+       in S.union syms newSyms
 
 toChomskyReducedForm :: CFG -> CFG
 toChomskyReducedForm =
@@ -224,23 +224,23 @@ bnfCFG =
         S.fromList
           [ ("<syntax>", ["<rule>"]),
             ("<syntax>", ["<rule>", "<syntax>"]),
-            ("<rule>", ["<opt-whitespace>", "\"<\"", "<rule-name>", "\">\"", "<opt-whitespace>", "\"::=\"", "<opt-whitespace>", "<expression>", "<line-end>"]),
+            ("<rule>", ["<opt-whitespace>", "<", "<rule-name>", ">", "<opt-whitespace>", ":", ":", "=", "<opt-whitespace>", "<expression>", "<line-end>"]),
             ("<opt-whitespace>", [" "]),
             ("<opt-whitespace>", [" ", "<opt-whitespace>"]),
-            ("<opt-whitespace>", [""]),
+            ("<opt-whitespace>", []),
             ("<expression>", ["<list>"]),
-            ("<expression>", ["<list>", "<opt-whitespace>", "\"|\"", "<opt-whitespace>", "<expression>"]),
+            ("<expression>", ["<list>", "<opt-whitespace>", "|", "<opt-whitespace>", "<expression>"]),
             ("<line-end>", ["<opt-whitespace>", "<EOL>"]),
             ("<line-end>", ["<line-end>", "<line-end>"]),
             ("<list>", ["<term>"]),
             ("<list>", ["<term>", "<opt-whitespace>", "<list>"]),
             ("<term>", ["<literal>"]),
-            ("<term>", ["\"<\"", "<rule-name>", "\">\""]),
-            ("<literal>", ["\"\"", "<text1>", "\"\""]),
-            ("<literal>", ["\"'", "<text2>", "'\""]),
-            ("<text1>", [""]),
+            ("<term>", ["<", "<rule-name>", ">"]),
+            ("<literal>", ["\"", "<text1>", "\""]),
+            ("<literal>", ["'", "<text2>", "'"]),
+            ("<text1>", []),
             ("<text1>", ["<character1>", "<text1>"]),
-            ("<text2>", [""]),
+            ("<text2>", []),
             ("<text2>", ["<character2>", "<text2>"]),
             ("<character>", ["<letter>"]),
             ("<character>", ["<digit>"]),
@@ -347,6 +347,6 @@ bnfCFG =
             ("<rule-char>", ["<letter>"]),
             ("<rule-char>", ["<digit>"]),
             ("<rule-char>", ["-"]),
-            ("<EOL>", ["\\n"])
+            ("<EOL>", ["\n"])
           ]
     }
