@@ -1,5 +1,7 @@
 module Grammar.Chomsky where
 
+import Data.Data
+
 -- Symbol is either a terminal or a nonterminal
 -- Nonterminals contain children which should be empty before parsing begins
 -- Nonterminal children are filled in during parsing
@@ -17,9 +19,18 @@ symNameEq (Nonterminal a _) (Nonterminal b _) = a == b
 symNameEq (Terminal a) (Terminal b) = a == b
 symNameEq _ _ = False
 
-instance (Show t, Show nt) => Show (Symbol nt t) where
-  show (Nonterminal n _) = '/' : show n ++ "/"
-  show (Terminal a) = '\'' : show a
+instance (Show t, Show nt, Typeable t, Typeable nt) => Show (Symbol nt t) where
+  show (Nonterminal n _) =
+    '<'
+      : ( case cast n of
+            (Just (s :: String)) -> s
+            _ -> show n
+        )
+      ++ ">"
+  show (Terminal a) =
+    case cast a of
+      (Just (s :: String)) -> show s
+      _ -> "\"" ++ show a ++ "\""
 
 data ProductionRule nt t where
   Binary :: nt -> Symbol nt t -> Symbol nt t -> ProductionRule nt t
@@ -27,7 +38,7 @@ data ProductionRule nt t where
 
 type ProductionRules nt t = [ProductionRule nt t]
 
-instance (Show t, Show nt) => Show (ProductionRule nt t) where
+instance (Show t, Show nt, Typeable t, Typeable nt) => Show (ProductionRule nt t) where
   show rule = s ++ " -> " ++ ss
     where
       -- ss :: [Symbol nt t]
