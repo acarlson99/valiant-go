@@ -88,7 +88,7 @@ valiantParse productionRules tokens =
 -- test
 
 -- tokens = ["<", "i", "d", "e", "n", "t", ">", ":", ":", "=", " ", "\"", "a", "\""]
-tokens = ["<", "P", ">", " ", ":", ":", "=", " ", "<", "P", ">"] --
+tokens = ["<", "P", ">", " ", ":", ":", "=", " ", "<", "P", ">", "\n"] --
 
 productionRules = bnfGram
 
@@ -99,6 +99,9 @@ opRing' ts = map strToTerminalSym ts
 mat ts = pure <$> vecNToValiantMatrixN mempty (listToVecN $ opRing' ts)
 
 showM m = fmap ($ productionRules) m
+
+-- [a,b,c,d,e,f,g,h,i,j,k,l] = map const $ opRing' tokens
+-- ($ productionRules) $ (a `mul` (b `mul` (c `mul` (d `mul` (e `mul` (f `mul` (g `mul` (h `mul` ((i `mul` (j `mul` k)) `mul` l)))))))))
 
 -- EXAMPLE
 
@@ -208,7 +211,7 @@ __a ts =
           ( SquareMatrix
               Empty
               Empty
-              (SquareMatrix Empty Empty Empty Empty)
+              (SquareMatrix Empty Empty (UnitMatrix l) Empty)
               Empty
           )
           ( UpperRightTriangularMatrix
@@ -218,4 +221,4 @@ __a ts =
           )
       )
   where
-    (a : b : c : d : e : f : g : h : i : j : k : _) = opRing' ts
+    (a : b : c : d : e : f : g : h : i : j : k : l : []) = opRing' ts
