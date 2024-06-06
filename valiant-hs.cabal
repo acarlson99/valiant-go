@@ -57,7 +57,7 @@ common warnings
 
 library
   -- Import common warning flags.
-  import:           warnings
+  import:           warnings 
 
   -- Modules exported by the library.
   exposed-modules:
@@ -90,6 +90,23 @@ library
   hs-source-dirs:   src
 
   -- Base language which the package is written in.
+  default-language: GHC2021
+
+common profile-opts
+  ghc-options: -prof -fprof-auto "-with-rtsopts=-p -s -hT"
+
+executable valiant-hs-profile
+  import:
+    , warnings 
+    , profile-opts
+
+  main-is:          Main.hs
+  build-depends:
+    , base                  >=4.19.0.0
+    , optparse-applicative
+    , valiant-hs
+
+  hs-source-dirs:   exe
   default-language: GHC2021
 
 executable valiant-hs
