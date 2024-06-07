@@ -81,7 +81,7 @@ valiantParse productionRules tokens =
         []
         (map symToTree . S.toList . getSyms)
         ( liftMatF
-            (matrixTopRightMost . fmap ($ productionRules))
+            (fmap ($ productionRules) . matrixTopRightMost)
             (liftV mat)
         )
 
