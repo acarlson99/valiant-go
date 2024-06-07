@@ -95,6 +95,7 @@ library
 common profile-opts
   ghc-options: -prof -fprof-auto "-with-rtsopts=-p -s -hT"
 
+-- hp2ps -e8in -c valiant-hs-profile.hp
 executable valiant-hs-profile
   import:
     , warnings 
