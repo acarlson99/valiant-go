@@ -98,7 +98,7 @@ common profile-opts
 -- hp2ps -e8in -c valiant-hs-profile.hp
 executable valiant-hs-profile
   import:
-    , warnings 
+    , warnings
     , profile-opts
 
   main-is:          Main.hs
