@@ -1,0 +1,10 @@
+[X] tokenizer
+[X] end-to-end `CFG -> [a] -> ([a] -> [[a]]) -> parsed string` function using tokenizer and CFG->CNF conversion
+[X] main function `./parse --gram=grammar.cfg --tokenizer=symbols file.txt`
+[ ] parse input grammar file to CFG
+[ ] produce usable output given input file (this can just be a parse tree)
+[ ] "blow up" grammar-- expand recursive rules to some predefined size and remove recursion from smaller versions
+[ ] create "reversal" algorithm for CFG->(CNF,RevisionHistory)->CNFValiantParsed->(\RevisionHistory->CFG)
+[ ] I *think* that the `Matrix n (Grammar -> RingParse)` pattern is quite bad.  This causes very long evaluation times.
+    [ ] Check Valiant papers for a solution-- prolly they have already solved something like this
+[ ] when parsing a matrix that does not align on `2^n` lines the upper right corner should be offset by the same amount as the last token
