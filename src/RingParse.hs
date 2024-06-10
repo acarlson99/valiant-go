@@ -35,6 +35,6 @@ instance (Ord b, Ord a) => Ring (ProductionRules a b -> RingParse (Symbol a b)) 
   mul fx fy prods =
     let (RingParse x) = fx prods
         (RingParse y) = fy prods
-        toL = foldr (:) []
+        toL = S.toList
         s = catMaybes [binApp a a_0 a_1 | a_0 <- toL x, a_1 <- toL y, a <- prods]
-     in RingParse $ foldr S.insert S.empty s
+     in RingParse $ S.fromList s
