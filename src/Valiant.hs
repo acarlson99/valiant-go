@@ -9,11 +9,11 @@ import Data.Set qualified as S
 import Grammar.Chomsky
 import Grammar.ContextFree (bnfCFG)
 import Grammar.Convert (bnfGram, convert)
-import MatrixN
+import Matrix.N
+import Matrix.Sparse
 import Nat
 import Ring
 import RingParse
-import SparseMatrix
 import Tree qualified as T
 import VecN
 

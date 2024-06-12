@@ -12,7 +12,7 @@
 {-# LANGUAGE TypeOperators #-}
 {-# LANGUAGE UndecidableInstances #-}
 
-module SparseMatrix where
+module Matrix.Sparse where
 
 import Nat
 import Ring

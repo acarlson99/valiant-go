@@ -65,11 +65,11 @@ library
     Grammar.ContextFree
     Grammar.Convert
     Grammar.Tokenize
-    MatrixN
+    Matrix.N
+    Matrix.Sparse
     Nat
     Ring
     RingParse
-    SparseMatrix
     Tree
     Valiant
     Vec

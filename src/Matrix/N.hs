@@ -3,11 +3,11 @@
 {-# LANGUAGE RankNTypes #-}
 {-# OPTIONS_GHC -Wno-orphans #-}
 
-module MatrixN where
+module Matrix.N where
 
 import Data.Data
+import Matrix.Sparse
 import Nat
-import SparseMatrix
 import Vec
 import VecN
 
