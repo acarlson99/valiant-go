@@ -12,6 +12,7 @@ import Data.Set qualified as S
 import Grammar.Chomsky
 import Ring
 
+-- RingParse contains a set of partial parses
 newtype RingParse a = RingParse {getSyms :: S.Set a}
 
 instance (Eq a) => Eq (RingParse a) where
