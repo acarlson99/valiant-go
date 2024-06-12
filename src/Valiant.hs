@@ -74,31 +74,33 @@ symToTree (Terminal x) = T.Node (Right x) T.Empty T.Empty
 -- TODO: sequence Maybe [T.Tree a] -> Maybe T.Tree [a]
 valiantParse :: (nt ~ String, t ~ String) => ProductionRules nt t -> [String] -> [T.Tree (Either nt t)]
 valiantParse productionRules tokens =
-  let strToTerminalSym = RingParse . S.fromList . catMaybes . (<$> productionRules) . flip unaryApp . Terminal
-      opRing = map strToTerminalSym tokens
-      mat = pure <$> vecNToValiantMatrixN mempty (listToVecN opRing)
+  let strToRingParse = RingParse . S.fromList . catMaybes . (<$> productionRules) . flip unaryApp . Terminal
+      opRing = map strToRingParse tokens
+      -- TODO: v this hack (making all rules a tuple of rules,RingParse) is unacceptable-- please fix
+      mat = (,) productionRules <$> vecNToValiantMatrixN mempty (listToVecN opRing)
    in maybe
         []
         (map symToTree . S.toList . getSyms)
         ( liftMatF
-            (fmap ($ productionRules) . matrixTopRightMost)
+            (fmap snd . matrixTopRightMost)
             (liftV mat)
         )
 
 -- test
 
 -- tokens = ["<", "i", "d", "e", "n", "t", ">", ":", ":", "=", " ", "\"", "a", "\""]
-tokens = ["<", "P", ">", " ", ":", ":", "=", " ", "<", "P", ">", "\n"] --
+tokens = ["<", "P", ">", " ", ":", ":", "=", " ", "<", "P", ">", "<", "P", ">", "\n"] --
+-- tokens = ["<", "P", ">", " ", ":", ":", "=", " ", "<", "P", ">", "\n"] --
 
 productionRules = bnfGram
 
-strToTerminalSym = RingParse . S.fromList . catMaybes . (<$> productionRules) . flip unaryApp . Terminal
+strToRingParse = RingParse . S.fromList . catMaybes . (<$> productionRules) . flip unaryApp . Terminal
 
-opRing' ts = map strToTerminalSym ts
+opRing' ts = map strToRingParse ts
 
-mat ts = pure <$> vecNToValiantMatrixN mempty (listToVecN $ opRing' ts)
+mat ts = (,) productionRules <$> vecNToValiantMatrixN mempty (listToVecN $ opRing' ts)
 
-showM m = fmap ($ productionRules) m
+showM m = fmap snd m
 
 -- [a,b,c,d,e,f,g,h,i,j,k,l] = map const $ opRing' tokens
 -- ($ productionRules) $ (a `mul` (b `mul` (c `mul` (d `mul` (e `mul` (f `mul` (g `mul` (h `mul` ((i `mul` (j `mul` k)) `mul` l)))))))))
@@ -169,9 +171,9 @@ res = valiantParse _productionRules toks
 
 -- [a, b, c, d, e, f, g] = [1 .. 7]
 -- a `mul` ((b `mul` (c `mul` d)) `mul` (e `mul` (f `mul` g)))
-__a :: [String] -> Matrix (Succ (Succ (Succ (Succ Zero)))) (ProductionRules String String -> RingParse (Symbol String String))
+__a :: [String] -> Matrix (Succ (Succ (Succ (Succ Zero)))) (ProductionRules String String, RingParse (Symbol String String))
 __a ts =
-  pure
+  (,) productionRules
     <$> UpperRightTriangularMatrix
       ( UpperRightTriangularMatrix
           ( UpperRightTriangularMatrix

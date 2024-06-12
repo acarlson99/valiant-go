@@ -52,7 +52,10 @@ instance Ring Int where
   mul = (*)
 
 newtype RingInteger = RingInteger Integer
-  deriving (Num, Show)
+  deriving (Num)
+
+instance Show RingInteger where
+  show (RingInteger n) = show n
 
 instance Ring RingInteger where
   zero = 0
@@ -70,7 +73,7 @@ instance (Ring a, Ord a) => Ring (Set a) where
   add = union
   mul a b = fromList $ add <$> toList a <*> toList b
 
-instance (Ring a, Ring b) => Ring (a, b) where
-  zero = (zero, zero)
-  add (aa, ab) (ba, bb) = (aa `add` ba, ab `add` bb)
-  mul (aa, ab) (ba, bb) = (aa `mul` ba, ab `mul` bb)
+-- instance (Ring a, Ring b) => Ring (a, b) where
+--   zero = (zero, zero)
+--   add (aa, ab) (ba, bb) = (aa `add` ba, ab `add` bb)
+--   mul (aa, ab) (ba, bb) = (aa `mul` ba, ab `mul` bb)

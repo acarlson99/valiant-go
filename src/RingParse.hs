@@ -38,3 +38,10 @@ instance (Ord b, Ord a) => Ring (ProductionRules a b -> RingParse (Symbol a b)) 
         toL = S.toList
         s = catMaybes [binApp a a_0 a_1 | a_0 <- toL x, a_1 <- toL y, a <- prods]
      in RingParse $ S.fromList s
+
+instance (Ord a, Ord b) => Ring (ProductionRules a b, RingParse (Symbol a b)) where
+  zero = (mempty, RingParse mempty)
+  add (aa, ab) (_, bb) = (aa, ab <> bb)
+  mul (prods, RingParse ab) (_, RingParse bb) = (prods, RingParse $ S.fromList res)
+    where
+      res = catMaybes [binApp a a_0 a_1 | a_0 <- S.toList ab, a_1 <- S.toList bb, a <- prods]
