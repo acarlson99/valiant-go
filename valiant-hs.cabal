@@ -95,20 +95,21 @@ library
 common profile-opts
   ghc-options: -prof -fprof-auto "-with-rtsopts=-p -s -hT"
 
--- hp2ps -e8in -c valiant-hs-profile.hp
-executable valiant-hs-profile
-  import:
-    , warnings
-    , profile-opts
+-- -- cabal run --enable-profiling valiant-hs
+-- -- hp2ps -e8in -c valiant-hs-profile.hp
+-- executable valiant-hs-profile
+--   import:
+--     , warnings
+--     , profile-opts
 
-  main-is:          Main.hs
-  build-depends:
-    , base                  >=4.19.0.0
-    , optparse-applicative
-    , valiant-hs
+--   main-is:          Main.hs
+--   build-depends:
+--     , base                  >=4.19.0.0
+--     , optparse-applicative
+--     , valiant-hs
 
-  hs-source-dirs:   exe
-  default-language: GHC2021
+--   hs-source-dirs:   exe
+--   default-language: GHC2021
 
 executable valiant-hs
   -- Import common warning flags.
