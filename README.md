@@ -76,6 +76,7 @@ This reduces ambiguity by consuming up to four tokens at a time in the `<L2>` ru
 * Create grammar reversal so parsing returns a parse tree matching the input grammar
 * Parallelize-- parsing can be safely performed non-sequentially, so creating many workers to parse different sections of the matrix could produce a significant speedup.  For details see the following:
 
+```bibtex
 @article{Bernardy2015EfficientPA,
   title={Efficient parallel and incremental parsing of practical context-free languages},
   author={Jean-Philippe Bernardy and Koen Claessen},
@@ -84,3 +85,4 @@ This reduces ambiguity by consuming up to four tokens at a time in the `<L2>` ru
   volume={25},
   url={https://api.semanticscholar.org/CorpusID:14147950}
 }
+```
