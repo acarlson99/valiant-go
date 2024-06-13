@@ -74,3 +74,12 @@ This recursive rule adds ambiguity when parsing because it will produce many `<L
 This reduces ambiguity by consuming up to four tokens at a time in the `<L2>` rule instead of consuming an unknown number and producing more tokens than necessary.
 
 * Create grammar reversal so parsing returns a parse tree matching the input grammar
+* Parallelize-- parsing can be safely performed non-sequentially, so creating many workers to parse different sections of the matrix could produce a significant speedup.  For details see the following:
+@article{Bernardy2015EfficientPA,
+  title={Efficient parallel and incremental parsing of practical context-free languages},
+  author={Jean-Philippe Bernardy and Koen Claessen},
+  journal={Journal of Functional Programming},
+  year={2015},
+  volume={25},
+  url={https://api.semanticscholar.org/CorpusID:14147950}
+}
